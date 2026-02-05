@@ -16,19 +16,45 @@ spring:
   application:
     name: fapshi-backend
 
-server:
-  port: 8080
+  server:
+    port: 8080
 
-# Correction du format pour les logs (en mode YAML)
+  # =============================================
+  # CONFIGURATION EMAIL - À REMPLIR ICI
+  # =============================================
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: pewoparfait@gmail.com                   # ← METS TON EMAIL GMAIL ICI
+    password: nzzinpcmwaauxdja                        # ← METS TON APP PASSWORD ICI (16 caractères, SANS ESPACES)
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# =============================================
+# CONFIGURATION LOGS (déjà bien)
+# =============================================
 logging:
   level:
     org.springframework.security: DEBUG
     org.springframework.web: DEBUG
     com.fapshi.backend.security: DEBUG
 
-# Configuration Swagger (SpringDoc)
+# =============================================
+# CONFIGURATION SWAGGER (déjà bien)
+# =============================================
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
+
+# =============================================
+# CONFIGURATION SUPPLÉMENTAIRE (optionnelle mais utile)
+# =============================================
+app:
+  reset-code:
+    expiration-minutes: 10  # Durée de validité du code de réinitialisation

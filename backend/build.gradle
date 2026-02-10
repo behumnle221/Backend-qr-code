@@ -44,6 +44,9 @@ dependencies {
     // Swagger / OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
 
+    // Pusher Java client (server-side)
+    // To enable real Pusher, add the official dependency and set pusher.enabled=true in application.properties
+
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

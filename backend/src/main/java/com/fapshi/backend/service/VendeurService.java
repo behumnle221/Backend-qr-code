@@ -36,6 +36,9 @@ public class VendeurService {
     @Autowired
     private RetraitRepository retraitRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     public Vendeur save(Vendeur vendeur) {
         return vendeurRepository.save(vendeur);
     }
@@ -275,7 +278,17 @@ public class VendeurService {
         retrait.setDateCreation(maintenant);
         retrait.setDateAttempt(maintenant);
         
-        return retraitRepository.save(retrait);
+        retrait = retraitRepository.save(retrait);
+        
+        // 4. Envoyer une notification
+        notificationService.creerNotification(
+            vendeurId,
+            "RETRAIT_DEMANDE",
+            "Retrait demandé",
+            "Votre retrait de " + montant + " XAF via " + operateur + " a été demandé. Statut: PENDING"
+        );
+        
+        return retrait;
     }
 
     /**
@@ -325,9 +338,23 @@ public class VendeurService {
         retrait.setMessage(message);
         retrait.setDateAttempt(LocalDateTime.now());
         
-        // Si SUCCÈS, déduire du solde du vendeur
+        // Si SUCCÈS, déduire du solde du vendeur et notifier
         if ("SUCCESS".equals(nouveauStatut)) {
             diminuerSolde(retrait.getVendeur().getId(), retrait.getMontant());
+            notificationService.creerNotification(
+                retrait.getVendeur().getId(),
+                "RETRAIT_SUCCESS",
+                "Retrait réussi",
+                "Votre retrait de " + retrait.getMontant() + " XAF vers " + retrait.getOperateur() + " a été traité avec succès. Référence: " + referenceId
+            );
+        } else if ("FAILED".equals(nouveauStatut)) {
+            // Si ÉCHEC, notifier le vendeur
+            notificationService.creerNotification(
+                retrait.getVendeur().getId(),
+                "RETRAIT_FAILED",
+                "Retrait échoué",
+                "Votre retrait de " + retrait.getMontant() + " XAF a échoué. Raison: " + message
+            );
         }
         
         return retraitRepository.save(retrait);

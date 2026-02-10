@@ -1,10 +1,10 @@
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.2.1'
-    id 'io.spring.dependency-management' version '1.1.7'
+    id 'io.spring.dependency-management' version '1.1.4' // Mis à jour pour compatibilité 3.2.1
 }
 
-group = 'com.fapshi'  // Adapté à ton package com.fapshi.backend
+group = 'com.fapshi'
 version = '0.0.1-SNAPSHOT'
 
 java {
@@ -18,37 +18,34 @@ repositories {
 }
 
 dependencies {
+    // Starters principaux
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // JWT (Versions maintenues par le dependency management de Spring si possible, 
+    // sinon tes versions 0.12.3 sont très bien)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
 
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // Jackson - Support Java 8 Dates (Indispensable pour ton erreur 500)
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'com.fasterxml.jackson.core:jackson-databind'  
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'com.fasterxml.jackson.core:jackson-annotations'
-    implementation 'com.fasterxml.jackson.core:jackson-core'
+    // Base de données
     runtimeOnly 'com.mysql:mysql-connector-j'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
-    // SpringDoc OpenAPI (Swagger UI) - Version compatible Spring Boot 3.2
+    // Swagger / OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
-    //hachage pour le mot de passe
-    //implementation 'org.springframework.boot:spring-boot-starter-security'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testCompileOnly 'org.projectlombok:lombok'
-    testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
 tasks.named('test') {

@@ -11,6 +11,9 @@ public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @ManyToOne
+    @JoinColumn(name = "client_id")
+    private Client client;  
 
     @ManyToOne
     @JoinColumn(name = "qr_code_id", nullable = false)
@@ -35,10 +38,19 @@ public class Transaction {
 
     private LocalDateTime dateExpiration;
 
+    // Commission appliquée sur cette transaction (en XAF)
+    private BigDecimal commissionAppliquee = BigDecimal.ZERO;
+
+    // Montant net reçu par le vendeur (montant - commission)
+    private BigDecimal montantNet;
+
     @PrePersist
     protected void onCreate() {
         dateCreation = LocalDateTime.now();
         statut = "PENDING";
+        if (montantNet == null) {
+            montantNet = montant; // Par défaut = montant brut si pas de commission
+        }
     }
 
     // GETTERS MANUELS
@@ -53,6 +65,9 @@ public class Transaction {
     public String getOperator() { return operator; }
     public LocalDateTime getDateCreation() { return dateCreation; }
     public LocalDateTime getDateExpiration() { return dateExpiration; }
+    public Client getClient() {return client;}
+    public BigDecimal getCommissionAppliquee() { return commissionAppliquee; }
+    public BigDecimal getMontantNet() { return montantNet; }
 
     // SETTERS MANUELS
     public void setId(Long id) { this.id = id; }
@@ -60,10 +75,13 @@ public class Transaction {
     public void setTelephoneClient(String telephoneClient) { this.telephoneClient = telephoneClient; }
     public void setMontant(BigDecimal montant) { this.montant = montant; }
     public void setStatut(String statut) { this.statut = statut; }
+    public void setClient(Client client) {this.client = client;}
     public void setPayToken(String payToken) { this.payToken = payToken; }
     public void setPayUrl(String payUrl) { this.payUrl = payUrl; }
     public void setReferenceOperateur(String referenceOperateur) { this.referenceOperateur = referenceOperateur; }
     public void setOperator(String operator) { this.operator = operator; }
     public void setDateCreation(LocalDateTime dateCreation) { this.dateCreation = dateCreation; }
     public void setDateExpiration(LocalDateTime dateExpiration) { this.dateExpiration = dateExpiration; }
+    public void setCommissionAppliquee(BigDecimal commissionAppliquee) { this.commissionAppliquee = commissionAppliquee; }
+    public void setMontantNet(BigDecimal montantNet) { this.montantNet = montantNet; }
 }

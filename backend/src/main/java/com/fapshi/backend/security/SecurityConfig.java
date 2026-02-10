@@ -28,12 +28,27 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/v3/api-docs/**").permitAll()
-                .requestMatchers("/api/qr/generate").hasRole("VENDEUR")
-                .anyRequest().authenticated()
-            )
+    .requestMatchers("/api/auth/**").permitAll()
+    .requestMatchers("/api/webhook/**").permitAll()  // 🔶 Webhooks d'Aangaraa (pas d'authentification)
+    .requestMatchers("/error").permitAll()
+    .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
+    .requestMatchers("/v3/api-docs/**").permitAll()
+    
+    // QR generation : vendeurs seulement
+    .requestMatchers("/api/qr/generate").hasRole("VENDEUR")
+    
+    // Solde vendeur : vendeurs seulement
+    .requestMatchers("/api/vendeur/**").hasRole("VENDEUR")
+    
+    // Paiement initiation : clients (ou clients + vendeurs)
+    .requestMatchers("/api/payments/initiate").hasAnyRole("CLIENT", "VENDEUR")
+    
+    // Autres endpoints paiement : authentifiés
+    .requestMatchers("/api/payments/**").authenticated()
+    
+    // Tout le reste nécessite authentification
+    .anyRequest().authenticated()
+)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -29,6 +29,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         @Param("dateFin") LocalDateTime dateFin,
         Pageable pageable
     );
+
+    // AJOUT : Query pour récupérer les transactions d'un client avec pagination et filtres
+    @Query("SELECT t FROM Transaction t " +
+           "WHERE t.client.id = :clientId " +
+           "AND (:statut IS NULL OR t.statut = :statut) " +
+           "AND (:dateDebut IS NULL OR t.dateCreation >= :dateDebut) " +
+           "AND (:dateFin IS NULL OR t.dateCreation <= :dateFin) " +
+           "ORDER BY t.dateCreation DESC")
+    Page<Transaction> findTransactionsByClient(
+        @Param("clientId") Long clientId,
+        @Param("statut") String statut,
+        @Param("dateDebut") LocalDateTime dateDebut,
+        @Param("dateFin") LocalDateTime dateFin,
+        Pageable pageable
+    );
 }
-
-

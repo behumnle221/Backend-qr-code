@@ -1,10 +1,12 @@
 package com.fapshi.backend.service;
 
+
 import com.fapshi.backend.dto.response.QrValidationResponse;
 import com.fapshi.backend.entity.QRCode;
 import com.fapshi.backend.repository.QRCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +31,7 @@ public class QRCodeService {
     public List<QRCode> findNonUtilises() {
         return qrCodeRepository.findByEstUtiliseFalse();
     }
+
 
     public QrValidationResponse validateQrCode(Long qrCodeId) {
         QRCode qrCode = qrCodeRepository.findById(qrCodeId)

@@ -49,6 +49,9 @@ dependencies {
 
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.zxing:javase:3.5.3'
 }
 
 tasks.named('test') {

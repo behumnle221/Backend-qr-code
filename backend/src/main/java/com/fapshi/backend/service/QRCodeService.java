@@ -1,24 +1,95 @@
 package com.fapshi.backend.service;
 
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fapshi.backend.dto.request.GenerateQrRequest;
+import com.fapshi.backend.dto.request.ProductItemRequest;
+import com.fapshi.backend.dto.response.QrCodeResponse;
 import com.fapshi.backend.dto.response.QrValidationResponse;
 import com.fapshi.backend.entity.QRCode;
+import com.fapshi.backend.entity.Vendeur;
 import com.fapshi.backend.repository.QRCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
-/**
- * Service pour générer et gérer les QR Codes des vendeurs.
- */
 @Service
 public class QRCodeService {
 
     @Autowired
     private QRCodeRepository qrCodeRepository;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * NOUVELLE MÉTHODE : Génère un QR Code riche avec la liste des produits
+     */
+    public QrCodeResponse generateQRCode(GenerateQrRequest request, Vendeur vendeur) {
+        if (request.getProducts() == null || request.getProducts().isEmpty()) {
+            throw new RuntimeException("Au moins un produit est requis");
+        }
+
+        // Calcul du montant total
+        BigDecimal total = request.getProducts().stream()
+                .map(p -> p.getPrix().multiply(new BigDecimal(p.getQuantite())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Création de l'entité QRCode
+        QRCode qrCode = new QRCode();
+        qrCode.setVendeur(vendeur);
+        qrCode.setMontant(total);
+        qrCode.setDescription(request.getDescription() != null ? request.getDescription() : "Panier client");
+        qrCode.setDateExpiration(request.getDateExpiration());
+        qrCode.setContenu("Paiement " + total + " XAF - " + request.getProducts().size() + " produits");
+        qrCode.setHash("QR-" + UUID.randomUUID().toString().substring(0, 12));
+        qrCode.setEstUtilise(false);
+
+        // Sauvegarde pour obtenir l'ID
+        QRCode saved = qrCodeRepository.save(qrCode);
+
+        // Construction du payload JSON qui sera affiché dans le QR Code
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("qrCodeId", saved.getId());
+        payload.put("products", request.getProducts().stream()
+                .map(p -> Map.of(
+                        "nom", p.getNom(),
+                        "prix", p.getPrix(),
+                        "quantite", p.getQuantite()
+                ))
+                .collect(Collectors.toList()));
+        payload.put("total", total.toPlainString());
+        payload.put("merchant", vendeur.getNom());           // ou getNomCommerce() si tu préfères
+        payload.put("timestamp", LocalDateTime.now().toString());
+
+        String qrPayload;
+        try {
+            qrPayload = objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Erreur lors de la génération du payload QR", e);
+        }
+
+        // Mise à jour avec le payload
+        saved.setQrPayload(qrPayload);
+        qrCodeRepository.save(saved);
+
+        return new QrCodeResponse(
+                saved.getId(),
+                saved.getContenu(),
+                saved.getMontant(),
+                saved.getDescription(),
+                saved.getDateExpiration(),
+                saved.isEstUtilise(),
+                qrPayload
+        );
+    }
+
+    // ===================================================================
+    // MÉTHODES EXISTANTES (inchangées)
+    // ===================================================================
 
     public QRCode save(QRCode qrCode) {
         return qrCodeRepository.save(qrCode);
@@ -31,7 +102,6 @@ public class QRCodeService {
     public List<QRCode> findNonUtilises() {
         return qrCodeRepository.findByEstUtiliseFalse();
     }
-
 
     public QrValidationResponse validateQrCode(Long qrCodeId) {
         QRCode qrCode = qrCodeRepository.findById(qrCodeId)
@@ -60,15 +130,10 @@ public class QRCodeService {
         );
     }
 
-    // ───────────────────────────────────────────────
-    // MÉTHODE À PLACER ICI (pas à l’intérieur d’une autre !)
-    // ───────────────────────────────────────────────
-
     public void markQrAsUsed(Long qrCodeId, Long vendeurId) {
         QRCode qrCode = qrCodeRepository.findById(qrCodeId)
                 .orElseThrow(() -> new RuntimeException("QR Code non trouvé"));
 
-        // Vérification : seul le vendeur propriétaire peut marquer son QR
         if (!qrCode.getVendeur().getId().equals(vendeurId)) {
             throw new RuntimeException("Vous n'êtes pas le propriétaire de ce QR Code");
         }
@@ -82,6 +147,6 @@ public class QRCodeService {
         }
 
         qrCode.setEstUtilise(true);
-        qrCodeRepository.save(qrCode);  // ← CORRECTION ICI (repository, pas service)
+        qrCodeRepository.save(qrCode);
     }
 }

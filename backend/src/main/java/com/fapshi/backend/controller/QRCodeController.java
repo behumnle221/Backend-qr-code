@@ -40,34 +40,17 @@ public class QRCodeController {
     /**
      * Génère un QR Code pour un vendeur connecté.
      */
-    @Operation(summary = "Générer un QR Code", description = "Crée un QR Code pour un paiement. Réservé aux vendeurs.")
     @PostMapping("/generate")
     @PreAuthorize("hasAuthority('VENDEUR')")
     public ResponseEntity<ApiResponse<QrCodeResponse>> generateQRCode(@Valid @RequestBody GenerateQrRequest request) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();  // ← Correction : username (pas email)
+        String username = auth.getName();
 
         Vendeur vendeur = vendeurService.findByEmail(username)
+                .or(() -> vendeurService.findByTelephone(username))
                 .orElseThrow(() -> new RuntimeException("Vendeur non trouvé."));
 
-        QRCode qrCode = new QRCode();
-        qrCode.setVendeur(vendeur);
-        qrCode.setMontant(request.getMontant());
-        qrCode.setDescription(request.getDescription());
-        qrCode.setDateExpiration(request.getDateExpiration());
-        qrCode.setContenu("QR pour paiement " + request.getMontant() + " XAF");
-        qrCode.setHash("HASH-" + System.currentTimeMillis());
-
-        QRCode savedQr = qrCodeService.save(qrCode);
-
-        QrCodeResponse response = new QrCodeResponse(
-                savedQr.getId(),
-                savedQr.getContenu(),
-                savedQr.getMontant(),
-                savedQr.getDescription(),
-                savedQr.getDateExpiration(),
-                savedQr.isEstUtilise()
-        );
+        QrCodeResponse response = qrCodeService.generateQRCode(request, vendeur);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(response, "QR Code généré avec succès"));

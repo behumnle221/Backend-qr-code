@@ -18,6 +18,7 @@ spring:
 
   server:
     port: 8080
+    address: 0.0.0.0 // pour permettre la connexion depuis l'extérieur comme mon un telephone 
 
   # =============================================
   # CONFIGURATION EMAIL - À REMPLIR ICI

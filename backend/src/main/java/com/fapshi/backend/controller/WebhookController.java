@@ -1,28 +1,23 @@
 package com.fapshi.backend.controller;
 
-import com.fapshi.backend.dto.response.ApiResponse;
 import com.fapshi.backend.entity.QRCode;
 import com.fapshi.backend.entity.Transaction;
 import com.fapshi.backend.entity.Vendeur;
 import com.fapshi.backend.repository.QRCodeRepository;
 import com.fapshi.backend.repository.TransactionRepository;
 import com.fapshi.backend.service.VendeurService;
-import io.swagger.v3.oas.annotations.Operation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Controller pour traiter les webhooks d'Aangaraa Pay
- * Ces endpoints ne sont PAS protégés par JWT (Aangaraa appelle depuis l'extérieur)
- */
 @RestController
 @RequestMapping("/api/webhook")
 public class WebhookController {
@@ -38,163 +33,112 @@ public class WebhookController {
     @Autowired
     private VendeurService vendeurService;
 
-    /**
-     * Endpoint webhook pour recevoir les notifications d'Aangaraa Pay
-     * URL : POST /api/webhook/aangaraa
-     * 
-     * Payload attendu d'Aangaraa (exemple) :
-     * {
-     *   "payToken": "abc123def456",
-     *   "status": "SUCCESSFUL" ou "FAILED" ou "PENDING",
-     *   "transaction_id": "12345",
-     *   "message": "Payment processed successfully"
-     * }
-     */
-    @Operation(
-        summary = "Webhook Aangaraa Pay",
-        description = "Reçoit les notifications de statut de paiement d'Aangaraa Pay"
-    )
+    // Map statique pour verrouiller le traitement par payToken
+    private static final ConcurrentHashMap<String, Object> locks = new ConcurrentHashMap<>();
+
     @PostMapping("/aangaraa")
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleAangaraaWebhook(
-            @RequestBody Map<String, Object> payload) {
-        
+    @Transactional
+    public ResponseEntity<String> handleAangaraaWebhook(@RequestBody Map<String, Object> payload) {
+
+        log.info("🔔 WEBHOOK REÇU D'AANGARAA");
+        log.info("Payload complet : {}", payload);
+
         try {
-            log.info("🔔 Webhook reçu d'Aangaraa : {}", payload);
-            
-            // Récupérer les champs du webhook
-            String payToken = (String) payload.get("payToken");
-            String status = (String) payload.get("status");
-            String transactionIdStr = (String) payload.get("transaction_id");
-            String message = (String) payload.get("message");
-            
-            // Valider les champs obligatoires
+            String payToken = (String) payload.getOrDefault("payToken", payload.get("paytoken"));
+            String status   = (String) payload.get("status");
+
             if (payToken == null || status == null) {
                 log.error("❌ Webhook invalide : payToken ou status manquant");
-                return ResponseEntity.badRequest()
-                        .body(new ApiResponse<>("payToken et status sont obligatoires"));
+                return ResponseEntity.ok("OK");
             }
-            
-            // Chercher la transaction par payToken
-            Optional<Transaction> transactionOpt = transactionRepository.findAll().stream()
-                    .filter(tx -> payToken.equals(tx.getPayToken()))
-                    .findFirst();
-            
-            if (transactionOpt.isEmpty()) {
-                log.warn("⚠️ Transaction non trouvée pour payToken: {}", payToken);
-                return ResponseEntity.ok()
-                        .body(new ApiResponse<>("Transaction non trouvée (peut avoir été traitée)"));
-            }
-            
-            Transaction transaction = transactionOpt.get();
-            log.info("✅ Transaction trouvée : ID {}, statut actuel: {}", transaction.getId(), transaction.getStatut());
-            
-            // Mettre à jour le statut de la transaction selon le webhook
-            if ("SUCCESSFUL".equalsIgnoreCase(status)) {
-                transaction.setStatut("SUCCESS");
-                
-                // Marquer le QR code comme utilisé
-                QRCode qrCode = transaction.getQrCode();
-                if (qrCode != null) {
-                    qrCode.setEstUtilise(true);
-                    qrCodeRepository.save(qrCode);
-                    log.info("✅ QR Code {} marqué comme utilisé", qrCode.getId());
+
+            // Création d’un lock pour ce payToken
+            Object lock = locks.computeIfAbsent(payToken, k -> new Object());
+
+            synchronized (lock) {
+                Optional<Transaction> optTransaction = transactionRepository.findByPayToken(payToken);
+                if (optTransaction.isEmpty()) {
+                    log.warn("⚠️ Transaction non trouvée pour payToken: {}", payToken);
+                    return ResponseEntity.ok("OK");
                 }
-                
-                // 🔶 METTRE À JOUR LE SOLDE DU VENDEUR
-                Vendeur vendeur = qrCode.getVendeur();
-                if (vendeur != null) {
-                    vendeurService.augmenterSolde(vendeur.getId(), transaction.getMontantNet());
-                    log.info("💰 Solde vendeur {} augmenté de {} XAF", vendeur.getId(), transaction.getMontantNet());
+
+                Transaction transaction = optTransaction.get();
+                log.info("✅ Transaction trouvée → ID: {} | Ancien statut: {}", 
+                         transaction.getId(), transaction.getStatut());
+
+                status = status.toUpperCase();
+
+                switch (status) {
+                    case "SUCCESSFUL":
+                        if (!"SUCCESS".equals(transaction.getStatut())) {
+                            transaction.setStatut("SUCCESS");
+                            handleSuccess(transaction);
+                        }
+                        break;
+
+                    case "FAILED":
+                    case "CANCELLED":
+                        if (!"FAILED".equals(transaction.getStatut())) {
+                            transaction.setStatut("FAILED");
+                        }
+                        break;
+
+                    case "PENDING":
+                        log.info("Transaction {} reste PENDING", transaction.getId());
+                        break;
+
+                    default:
+                        log.warn("Statut inconnu reçu pour transaction {}: {}", transaction.getId(), status);
+                        break;
                 }
-                
-            } else if ("FAILED".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
-                transaction.setStatut("FAILED");
-                log.warn("❌ Paiement échoué/annulé : {}", message);
-                
-            } else if ("PENDING".equalsIgnoreCase(status)) {
-                transaction.setStatut("PENDING");
-                log.info("⏳ Paiement en attente");
-            } else {
-                transaction.setStatut(status);
-                log.info("ℹ️ Statut reçu : {}", status);
+
+                transactionRepository.save(transaction);
+                log.info("✅ Webhook traité → Transaction {} → {}", transaction.getId(), transaction.getStatut());
             }
-            
-            // Sauvegarder la transaction
-            transactionRepository.save(transaction);
-            
-            log.info("✅ Webhook traité avec succès pour transaction {}", transaction.getId());
-            
-            return ResponseEntity.ok()
-                    .body(new ApiResponse<>(
-                            Map.of(
-                                    "success", "true",
-                                    "transactionId", transaction.getId().toString(),
-                                    "statut", transaction.getStatut()
-                            ),
-                            "Webhook traité avec succès"
-                    ));
-            
+
+            // Supprime le lock après traitement pour éviter fuite mémoire
+            locks.remove(payToken);
+
+            return ResponseEntity.ok("OK");
+
         } catch (Exception e) {
-            log.error("❌ Erreur lors du traitement du webhook", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse<>("Erreur: " + e.getMessage()));
+            log.error("❌ Erreur critique dans le webhook", e);
+            return ResponseEntity.ok("OK");
         }
     }
 
-    /**
-     * Endpoint de test pour simuler un webhook (utile pour les tests sans Aangaraa réel)
-     * URL : POST /api/webhook/test-aangaraa
-     */
-    @Operation(
-        summary = "Test webhook Aangaraa",
-        description = "Simule un webhook Aangaraa (pour les tests)"
-    )
-    @PostMapping("/test-aangaraa")
-    public ResponseEntity<ApiResponse<Map<String, String>>> testWebhook(
-            @RequestParam Long transactionId,
-            @RequestParam String status) {
-        
+    private void handleSuccess(Transaction transaction) {
         try {
-            log.info("🧪 Test webhook : transactionId={}, status={}", transactionId, status);
-            
-            Optional<Transaction> transactionOpt = transactionRepository.findById(transactionId);
-            if (transactionOpt.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(new ApiResponse<>("Transaction non trouvée"));
+            QRCode qrCode = transaction.getQrCode();
+            if (qrCode != null) {
+                qrCode.setEstUtilise(true);
+                qrCodeRepository.save(qrCode);
             }
-            
-            Transaction transaction = transactionOpt.get();
-            transaction.setStatut(status);
-            
-            if ("SUCCESS".equalsIgnoreCase(status)) {
-                QRCode qrCode = transaction.getQrCode();
-                if (qrCode != null) {
-                    qrCode.setEstUtilise(true);
-                    qrCodeRepository.save(qrCode);
-                }
-                
-                Vendeur vendeur = qrCode.getVendeur();
-                if (vendeur != null) {
-                    vendeurService.augmenterSolde(vendeur.getId(), transaction.getMontantNet());
-                }
+
+            Vendeur vendeur = qrCode != null ? qrCode.getVendeur() : null;
+            if (vendeur != null) {
+                BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : transaction.getMontant();
+                vendeurService.augmenterSolde(vendeur.getId(), montantNet);
+                log.info("💰 Solde vendeur {} augmenté de {}", vendeur.getId(), montantNet);
             }
-            
-            transactionRepository.save(transaction);
-            
-            return ResponseEntity.ok()
-                    .body(new ApiResponse<>(
-                            Map.of(
-                                    "success", "true",
-                                    "transactionId", transaction.getId().toString(),
-                                    "statut", transaction.getStatut()
-                            ),
-                            "Test webhook exécuté"
-                    ));
-            
         } catch (Exception e) {
-            log.error("Erreur test webhook", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse<>("Erreur: " + e.getMessage()));
+            log.error("❌ Erreur lors du traitement SUCCESS pour transaction {}: {}", transaction.getId(), e.getMessage());
+        }
+    }
+
+    @PostMapping("/test-aangaraa")
+    public ResponseEntity<String> testWebhook(@RequestParam Long transactionId, @RequestParam String status) {
+        log.info("🔧 Test Webhook → transactionId: {} | status: {}", transactionId, status);
+        Transaction transaction = transactionRepository.findById(transactionId).orElse(null);
+        if (transaction != null) {
+            transaction.setStatut(status.toUpperCase());
+            transactionRepository.save(transaction);
+            log.info("✅ Transaction {} mise à jour pour test", transactionId);
+            return ResponseEntity.ok("Test OK");
+        } else {
+            return ResponseEntity.badRequest().body("Transaction non trouvée");
         }
     }
 }
+
+

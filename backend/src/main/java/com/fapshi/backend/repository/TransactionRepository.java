@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     List<Transaction> findByQrCodeVendeurId(Long vendeurId);
@@ -30,6 +31,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         Pageable pageable
     );
 
+
+
     // AJOUT : Query pour récupérer les transactions d'un client avec pagination et filtres
     @Query("SELECT t FROM Transaction t " +
            "WHERE t.client.id = :clientId " +
@@ -44,4 +47,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         @Param("dateFin") LocalDateTime dateFin,
         Pageable pageable
     );
+
+    
+    // Recherche d'une transaction par son payToken (utilisé pour les webhooks)
+    Optional<Transaction> findByPayToken(String payToken);
 }

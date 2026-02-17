@@ -65,7 +65,7 @@ public class QRCodeController {
     public ResponseEntity<ApiResponse<List<QrCodeSummaryResponse>>> getMyQRCodes() {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();  // ← Correction : username (pas usermane)
+        String username = auth.getName();  
 
         Vendeur vendeur = vendeurService.findByEmail(username)
                 .or(() -> vendeurService.findByTelephone(username))
@@ -92,6 +92,7 @@ public class QRCodeController {
      * Valide un QR Code lors du scan par un client.
      * Accessible à tous (pas de rôle requis).
      */
+
     @Operation(summary = "Valider / Scanner un QR Code", description = "Vérifie si le QR est valide, non expiré et non utilisé.")
     @GetMapping("/validate/{qrCodeId}")
     public ResponseEntity<ApiResponse<QrValidationResponse>> validateQrCode(@PathVariable Long qrCodeId) {
@@ -104,10 +105,12 @@ public class QRCodeController {
         }
     }
 
+
     /**
      * Marque un QR Code comme utilisé après paiement réussi.
      * Réservé au vendeur propriétaire du QR.
      */
+
     @Operation(summary = "Marquer un QR Code comme utilisé", description = "Met estUtilise = true après un paiement confirmé. Réservé au vendeur.")
     @PutMapping("/{id}/mark-used")
     @PreAuthorize("hasAuthority('VENDEUR')")
@@ -128,3 +131,4 @@ public class QRCodeController {
         }
     }
 }
+

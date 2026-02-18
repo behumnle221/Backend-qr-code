@@ -25,8 +25,12 @@ public class QRCodeService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // Durée de validité du QR Code en minutes (fixée côté serveur)
+    private static final int QR_CODE_VALIDITY_MINUTES = 5;
+
     /**
-     * NOUVELLE MÉTHODE : Génère un QR Code riche avec la liste des produits
+     * Génère un QR Code riche avec la liste des produits.
+     * La date d'expiration est calculée côté serveur (5 minutes).
      */
     public QrCodeResponse generateQRCode(GenerateQrRequest request, Vendeur vendeur) {
         if (request.getProducts() == null || request.getProducts().isEmpty()) {
@@ -38,12 +42,15 @@ public class QRCodeService {
                 .map(p -> p.getPrix().multiply(new BigDecimal(p.getQuantite())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // ✅ Date d'expiration calculée côté serveur : now + 5 minutes
+        LocalDateTime dateExpiration = LocalDateTime.now().plusMinutes(QR_CODE_VALIDITY_MINUTES);
+
         // Création de l'entité QRCode
         QRCode qrCode = new QRCode();
         qrCode.setVendeur(vendeur);
         qrCode.setMontant(total);
         qrCode.setDescription(request.getDescription() != null ? request.getDescription() : "Panier client");
-        qrCode.setDateExpiration(request.getDateExpiration());
+        qrCode.setDateExpiration(dateExpiration); // ✅ Expiration fiable côté serveur
         qrCode.setContenu("Paiement " + total + " XAF - " + request.getProducts().size() + " produits");
         qrCode.setHash("QR-" + UUID.randomUUID().toString().substring(0, 12));
         qrCode.setEstUtilise(false);
@@ -62,7 +69,7 @@ public class QRCodeService {
                 ))
                 .collect(Collectors.toList()));
         payload.put("total", total.toPlainString());
-        payload.put("merchant", vendeur.getNom());           // ou getNomCommerce() si tu préfères
+        payload.put("merchant", vendeur.getNom());
         payload.put("timestamp", LocalDateTime.now().toString());
 
         String qrPayload;
@@ -150,3 +157,4 @@ public class QRCodeService {
         qrCodeRepository.save(qrCode);
     }
 }
+

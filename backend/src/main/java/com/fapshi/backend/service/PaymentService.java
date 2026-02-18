@@ -51,7 +51,7 @@ public class PaymentService {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${app.aangaraa.webhook-url}")
+    @Value("${app.aangaraa.webhook-url:https://backend-qr-code-u2kx.onrender.com/api/webhook/aangaraa}")
     private String webhookUrl;
 
     private static final String APP_KEY = "NRYT-9742-EHQY-QB4B";

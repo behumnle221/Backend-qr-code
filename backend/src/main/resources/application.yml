@@ -3,7 +3,7 @@ spring:
     url: jdbc:mysql://mysql-3f9232cd-pewoparfait-02ce.b.aivencloud.com:21097/defaultdb?sslMode=REQUIRED&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: avnadmin
     password: ${DB_PASSWORD}
-    driver-class-name: com.mysql.c.j.jdbc.Driver
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
@@ -27,7 +27,7 @@ spring:
     host: smtp.gmail.com
     port: 587
     username: pewoparfait@gmail.com  # Your Gmail address (already filled, change if needed)
-    password: nzzinpcmwaauxdja #[PUT YOUR GMAIL APP PASSWORD HERE - it's the 16-character code like nzzinpcmwaauxdja, NO SPACES]
+    password: ${GMAIL_PASSWORD}
     properties:
       mail:
         smtp:

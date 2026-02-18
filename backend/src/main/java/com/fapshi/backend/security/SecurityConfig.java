@@ -29,9 +29,13 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
     .requestMatchers("/api/auth/**").permitAll()
+
     .requestMatchers("/api/webhook/**").permitAll()
+
     .requestMatchers("/error").permitAll()
+
     .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
+    
     .requestMatchers("/v3/api-docs/**").permitAll()
     
     // TEMPORAIRE: Tester l'initiation de paiement sans restriction

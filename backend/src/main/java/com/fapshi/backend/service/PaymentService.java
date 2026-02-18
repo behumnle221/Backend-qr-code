@@ -17,9 +17,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -60,10 +63,8 @@ public class PaymentService {
     private static final String URL_REDIRECT = "https://api-production.aangaraa-pay.com/api/v1/redirect/payment";
 
     public PaymentInitResponse initiatePayment(InitiatePaymentRequest request) {
-        // 1. Validations de base
         validateRequest(request);
 
-        // 2. Récupération du QR Code
         QRCode qrCode = qrCodeRepository.findById(request.getQrCodeId())
                 .orElseThrow(() -> new RuntimeException("QR Code ID " + request.getQrCodeId() + " non trouvé"));
 
@@ -74,7 +75,6 @@ public class PaymentService {
             throw new RuntimeException("Ce QR Code est expiré.");
         }
 
-        // 3. Vérification stricte du montant
         BigDecimal montantBase = qrCode.getMontant().stripTrailingZeros();
         BigDecimal montantRecu = request.getMontant().stripTrailingZeros();
 
@@ -84,7 +84,6 @@ public class PaymentService {
                 montantRecu.toPlainString(), montantBase.toPlainString()));
         }
 
-        // 4. Création de la transaction PENDING
         Transaction transaction = new Transaction();
         transaction.setQrCode(qrCode);
         transaction.setTelephoneClient(request.getTelephoneClient());
@@ -95,7 +94,6 @@ public class PaymentService {
         calculateCommissionAndNetAmount(transaction);
         transaction = transactionRepository.save(transaction);
 
-        // 5. Préparation de l'appel API
         String url = request.isDirectPayment() ? URL_DIRECT : URL_REDIRECT;
         Map<String, Object> payload = prepareAangaraaPayload(request, qrCode, transaction);
 
@@ -106,7 +104,6 @@ public class PaymentService {
         try {
             log.info("Appel Aangaraa URL: {} | Payload: {}", url, payload);
 
-            // === APPEL API ===
             AangaraaPaymentResponse apiResponse = restTemplate.postForObject(url, entity, AangaraaPaymentResponse.class);
 
             if (apiResponse == null || apiResponse.getData() == null) {
@@ -115,17 +112,14 @@ public class PaymentService {
 
             AangaraaPaymentResponse.Data data = apiResponse.getData();
 
-            // Log très utile pour le debug
             log.info("Réponse Aangaraa reçue → payToken: {}, status: {}, transaction_id: {}",
                     data.getPayToken(), data.getStatus(), data.getTransaction_id());
 
-            // 6. Mise à jour de la transaction avec les infos renvoyées par Aangaraa
             transaction.setPayToken(data.getPayToken());
-            transaction.setPayUrl(data.getPayment_url());           // null en mode direct → OK
+            transaction.setPayUrl(data.getPayment_url());
             transaction.setReferenceOperateur(data.getTransaction_id());
             transactionRepository.save(transaction);
 
-            // 7. Construction de la réponse finale pour le client
             PaymentInitResponse response = new PaymentInitResponse();
             response.setSuccess(true);
             response.setMessage("Paiement initié. Veuillez valider sur votre téléphone.");
@@ -148,10 +142,6 @@ public class PaymentService {
         }
     }
 
-    // =====================================================================
-    // Méthodes privées (inchangées sauf petits ajustements mineurs)
-    // =====================================================================
-
     private void validateRequest(InitiatePaymentRequest request) {
         if (request.getQrCodeId() == null) throw new IllegalArgumentException("ID QR Code manquant.");
         if (request.getTelephoneClient() == null || request.getTelephoneClient().length() < 9)
@@ -160,163 +150,127 @@ public class PaymentService {
             throw new IllegalArgumentException("Montant invalide.");
     }
 
-private Map<String, Object> prepareAangaraaPayload(InitiatePaymentRequest request, QRCode qrCode, Transaction transaction) {
-    Map<String, Object> payload = new HashMap<>();
-    payload.put("amount", request.getMontant().toPlainString());
-    payload.put("description", "Paiement via QR " + qrCode.getId());
-    payload.put("app_key", APP_KEY);
-    payload.put("transaction_id", transaction.getId().toString());
+    private Map<String, Object> prepareAangaraaPayload(InitiatePaymentRequest request, QRCode qrCode, Transaction transaction) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("amount", request.getMontant().toPlainString());
+        payload.put("description", "Paiement via QR " + qrCode.getId());
+        payload.put("app_key", APP_KEY);
+        payload.put("transaction_id", transaction.getId().toString());
+        payload.put("notify_url", webhookUrl);
 
-    // ==================== URL du webhook (configurable) ====================
-    payload.put("notify_url", webhookUrl);
+        log.info("Notify URL envoyée à Aangaraa : {}", webhookUrl);
 
-    log.info("Notify URL envoyée à Aangaraa : {}", webhookUrl);   // ← très utile pour vérifier
+        if (request.isDirectPayment()) {
+            String phone = request.getTelephoneClient().trim().replaceAll("[^0-9]", "");
+            if (phone.startsWith("0")) phone = phone.substring(1);
+            if (!phone.startsWith("237")) phone = "237" + phone;
 
-    if (request.isDirectPayment()) {
-        // Normalisation du numéro (très important pour Aangaraa)
-        String phone = request.getTelephoneClient().trim().replaceAll("[^0-9]", "");
-        if (phone.startsWith("0")) phone = phone.substring(1);
-        if (!phone.startsWith("237")) phone = "237" + phone;
-
-        payload.put("phone_number", phone);
-        payload.put("operator", request.getOperator());
-        payload.put("devise_id", "XAF");
-
-        // Recommandé même en mode direct
-        payload.put("return_url", "https://example.com/payment-success");
-    } else {
-        payload.put("return_url", "https://example.com/payment-success");
-    }
-    return payload;
-}
-
-@Scheduled(fixedRate = 900000) // Chaque 30 secondes
-@Transactional
-public void checkPendingTransactions() {
-
-    log.info("📅 Scheduler lancé : Vérification des transactions PENDING");
-
-    List<Transaction> pending = transactionRepository.findByStatut("PENDING");
-    log.info("Nombre de transactions PENDING : {}", pending.size());
-
-    for (Transaction t : pending) {
-
-        try {
-
-            long ageMinutes = java.time.Duration
-                    .between(t.getDateCreation(), LocalDateTime.now())
-                    .toMinutes();
-
-            log.info("Vérification ID: {}, payToken: {}, âge: {} min",
-                    t.getId(), t.getPayToken(), ageMinutes);
-
-            // ==============================
-            // 1️⃣ IGNORER SI PAYTOKEN NULL
-            // ==============================
-            if (t.getPayToken() == null || t.getPayToken().isBlank()) {
-                log.warn("Transaction {} ignorée car payToken NULL", t.getId());
-                t.setStatut("FAILED");
-                transactionRepository.save(t);
-                continue;
-            }
-
-            // ==============================
-            // 2️⃣ EXPIRATION AUTOMATIQUE > 15 MIN
-            // ==============================
-            if (ageMinutes > 15) {
-                log.warn("Transaction {} expirée automatiquement (>15 min)", t.getId());
-                t.setStatut("FAILED");
-                transactionRepository.save(t);
-                continue;
-            }
-
-            // ==============================
-            // 3️⃣ ATTENDRE AU MOINS 5 MIN AVANT CHECK API
-            // ==============================
-            if (ageMinutes < 5) {
-                log.info("Transaction {} encore récente (<5 min), on attend...", t.getId());
-                continue;
-            }
-
-            // ==============================
-            // 4️⃣ APPEL API AANGARAA
-            // ==============================
-
-            Map<String, Object> checkBody = new HashMap<>();
-            checkBody.put("payToken", t.getPayToken());
-            checkBody.put("app_key", APP_KEY);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            HttpEntity<Map<String, Object>> entity =
-                    new HttpEntity<>(checkBody, headers);
-
-            Map<String, Object> response = restTemplate.postForObject(
-                    "https://api-production.aangaraa-pay.com/api/v1/aangaraa_check_status",
-                    entity,
-                    Map.class
-            );
-
-            if (response == null) {
-                log.error("Réponse API NULL pour transaction {}", t.getId());
-                continue;
-            }
-
-            log.info("Réponse API : {}", response);
-
-            String status = String.valueOf(
-                    response.getOrDefault("status", "UNKNOWN")
-            ).toUpperCase();
-
-            // ==============================
-            // 5️⃣ TRAITEMENT DU STATUT
-            // ==============================
-
-            switch (status) {
-
-                case "SUCCESSFUL":
-                    t.setStatut("SUCCESS");
-                    updateVendeurSoldeOnSuccess(t);
-
-                    QRCode qr = t.getQrCode();
-                    if (qr != null) {
-                        qr.setEstUtilise(true);
-                        qrCodeRepository.save(qr);
-                    }
-
-                    log.info("Transaction {} validée SUCCESS", t.getId());
-                    break;
-
-                case "FAILED":
-                case "CANCELLED":
-                    t.setStatut("FAILED");
-                    log.info("Transaction {} échouée", t.getId());
-                    break;
-
-                case "PENDING":
-                    log.info("Transaction {} toujours PENDING", t.getId());
-                    break;
-
-                default:
-                    log.warn("Transaction {} statut inconnu: {}", t.getId(), status);
-                    t.setStatut("UNKNOWN");
-                    break;
-            }
-
-            transactionRepository.save(t);
-            log.info("Mise à jour : {} → {}", t.getId(), t.getStatut());
-
-        } catch (Exception e) {
-            log.error("Erreur vérification ID {} : {}", t.getId(), e.getMessage());
+            payload.put("phone_number", phone);
+            payload.put("operator", request.getOperator());
+            payload.put("devise_id", "XAF");
+            payload.put("return_url", "https://example.com/payment-success");
+        } else {
+            payload.put("return_url", "https://example.com/payment-success");
         }
+        return payload;
     }
 
-    log.info("📅 Scheduler terminé");
-}
+    @Scheduled(fixedRate = 900000) // Toutes les 15 minutes
+    @Transactional
+    public void checkPendingTransactions() {
+        log.info("📅 Scheduler lancé : Vérification des transactions PENDING");
 
+        List<Transaction> pending = transactionRepository.findByStatut("PENDING");
+        log.info("Nombre de transactions PENDING : {}", pending.size());
 
-    
+        for (Transaction t : pending) {
+            try {
+                long ageMinutes = java.time.Duration.between(t.getDateCreation(), LocalDateTime.now()).toMinutes();
+
+                log.info("Vérification ID: {}, payToken: {}, âge: {} min", t.getId(), t.getPayToken(), ageMinutes);
+
+                if (t.getPayToken() == null || t.getPayToken().isBlank()) {
+                    log.warn("Transaction {} ignorée car payToken NULL", t.getId());
+                    t.setStatut("FAILED");
+                    transactionRepository.save(t);
+                    continue;
+                }
+
+                if (ageMinutes > 15) {
+                    log.warn("Transaction {} expirée automatiquement (>15 min)", t.getId());
+                    t.setStatut("FAILED");
+                    transactionRepository.save(t);
+                    continue;
+                }
+
+                if (ageMinutes < 5) {
+                    log.info("Transaction {} encore récente (<5 min), on attend...", t.getId());
+                    continue;
+                }
+
+                Map<String, Object> checkBody = new HashMap<>();
+                checkBody.put("payToken", t.getPayToken());
+                checkBody.put("app_key", APP_KEY);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(checkBody, headers);
+
+                ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(
+                        "https://api-production.aangaraa-pay.com/api/v1/aangaraa_check_status",
+                        HttpMethod.POST,
+                        entity,
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
+                );
+
+                Map<String, Object> response = responseEntity.getBody();
+                if (response == null) {
+                    log.error("Réponse API NULL pour transaction {}", t.getId());
+                    continue;
+                }
+
+                log.info("Réponse API : {}", response);
+
+                String status = String.valueOf(response.getOrDefault("status", "UNKNOWN")).toUpperCase();
+
+                switch (status) {
+                    case "SUCCESSFUL":
+                        t.setStatut("SUCCESS");
+                        updateVendeurSoldeOnSuccess(t);
+                        QRCode qr = t.getQrCode();
+                        if (qr != null) {
+                            qr.setEstUtilise(true);
+                            qrCodeRepository.save(qr);
+                        }
+                        log.info("Transaction {} validée SUCCESS", t.getId());
+                        break;
+
+                    case "FAILED":
+                    case "CANCELLED":
+                        t.setStatut("FAILED");
+                        log.info("Transaction {} échouée", t.getId());
+                        break;
+
+                    case "PENDING":
+                        log.info("Transaction {} toujours PENDING", t.getId());
+                        break;
+
+                    default:
+                        log.warn("Transaction {} statut inconnu: {}", t.getId(), status);
+                        t.setStatut("UNKNOWN");
+                        break;
+                }
+
+                transactionRepository.save(t);
+                log.info("Mise à jour : {} → {}", t.getId(), t.getStatut());
+
+            } catch (Exception e) {
+                log.error("Erreur vérification ID {} : {}", t.getId(), e.getMessage(), e);
+            }
+        }
+
+        log.info("📅 Scheduler terminé");
+    }
 
     private void calculateCommissionAndNetAmount(Transaction transaction) {
         ConfigurationFrais config = configurationFraisRepository.findById(1L)
@@ -350,7 +304,7 @@ public void checkPendingTransactions() {
                     vendeur.getId(), transaction.getMontantNet(), transaction.getId());
         } catch (Exception e) {
             log.error("Erreur lors de la mise à jour du solde pour transaction {}: {}", 
-                    transaction.getId(), e.getMessage());
+                    transaction.getId(), e.getMessage(), e);
         }
     }
 }

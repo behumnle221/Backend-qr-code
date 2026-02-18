@@ -1,21 +1,29 @@
 package com.fapshi.backend.security;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+
 import javax.crypto.SecretKey;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
-    private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private final long expirationTime = 86400000L;
+
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
+
+    // Clé ultra-sécurisée (HS512) - sans aucun warning déprécié
+    private final SecretKey secretKey = Jwts.SIG.HS512.key().build();
+    private final long expirationTime = 86400000L; // 24 heures
 
     public String generateToken(String username, Long userId, String role) {
         return Jwts.builder()
                 .subject(username)
                 .claim("userId", userId)
-                .claim("role", role)  // SANS le préfixe ROLE_
+                .claim("role", role)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(secretKey)
@@ -25,18 +33,15 @@ public class JwtUtil {
     public String getUsernameFromToken(String token) {
         return getClaims(token).getSubject();
     }
-    
-    // ⬅️ NOUVELLE MÉTHODE
+
     public String getRoleFromToken(String token) {
         return getClaims(token).get("role", String.class);
     }
-    
-    // ⬅️ NOUVELLE MÉTHODE
+
     public Long getUserIdFromToken(String token) {
         return getClaims(token).get("userId", Long.class);
     }
-    
-    // ⬅️ MÉTHODE HELPER
+
     private Claims getClaims(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)
@@ -50,10 +55,10 @@ public class JwtUtil {
             getClaims(token);
             return true;
         } catch (ExpiredJwtException e) {
-            System.err.println("Token expiré");
+            log.warn("Token expiré");
             return false;
         } catch (Exception e) {
-            System.err.println("Token invalide: " + e.getMessage());
+            log.warn("Token invalide: {}", e.getMessage());
             return false;
         }
     }

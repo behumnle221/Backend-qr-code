@@ -7,10 +7,12 @@ import com.fapshi.backend.repository.UserRepository;
 import com.fapshi.backend.utils.PasswordEncoderUtil;
 
 import jakarta.mail.MessagingException;
-import lombok.extern.slf4j.Slf4j;
+
 
 import org.slf4j.Logger;
+
 import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,9 +27,9 @@ import jakarta.transaction.Transactional;
  * Service pour gérer les opérations sur l'entité User (classe mère).
  * Utilisé pour l'inscription, la connexion, la recherche par email/téléphone.
  */
-@Slf4j
 @Service
 public class UserService {
+
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     @Autowired
@@ -37,7 +39,8 @@ public class UserService {
     private ResetTokenRepository resetTokenRepository;
 
     @Autowired
-    private PasswordEncoderUtil passwordEncoder;  // Si pas déjà
+    private PasswordEncoderUtil passwordEncoder;
+
     @Autowired
     private UserRepository userRepository;
 
@@ -75,6 +78,7 @@ public class UserService {
     public boolean existsByTelephone(String telephone) {
         return userRepository.existsByTelephone(telephone);
     }
+
     @Transactional
     public void requestPasswordReset(String email) {
         User user = userRepository.findByEmail(email)
@@ -102,20 +106,22 @@ public class UserService {
             throw new RuntimeException("Erreur lors de l'envoi du code de réinitialisation");
         }
     }
-public void resetPassword(String code, String newPassword) {
-    ResetToken token = resetTokenRepository.findByToken(code)
-            .orElseThrow(() -> new RuntimeException("Code de réinitialisation invalide ou expiré"));
 
-    if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
-        throw new RuntimeException("Code de réinitialisation expiré");
+    @Transactional
+    public void resetPassword(String code, String newPassword) {
+        ResetToken token = resetTokenRepository.findByToken(code)
+                .orElseThrow(() -> new RuntimeException("Code de réinitialisation invalide ou expiré"));
+
+        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Code de réinitialisation expiré");
+        }
+
+        User user = userRepository.findById(token.getUserId())
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        resetTokenRepository.delete(token);  // Supprime le token utilisé
     }
-
-    User user = userRepository.findById(token.getUserId())
-            .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
-
-    user.setPassword(passwordEncoder.encode(newPassword));  // Hache le nouveau password
-    userRepository.save(user);
-
-    resetTokenRepository.delete(token);  // Supprime le token utilisé
-}
 }

@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.2.1'
-    id 'io.spring.dependency-management' version '1.1.4' // Mis à jour pour compatibilité 3.2.1
+    id 'io.spring.dependency-management' version '1.1.4'
 }
 
 group = 'com.fapshi'
@@ -25,13 +25,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
 
-    // JWT (Versions maintenues par le dependency management de Spring si possible, 
-    // sinon tes versions 0.12.3 sont très bien)
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
-    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
-    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+    // JWT (version mise à jour vers 0.12.6 = plus stable)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
-    // Jackson - Support Java 8 Dates (Indispensable pour ton erreur 500)
+    // Jackson - Support Java 8 Dates
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // Base de données
@@ -44,16 +43,24 @@ dependencies {
     // Swagger / OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
 
-    // Pusher Java client (server-side)
-    // To enable real Pusher, add the official dependency and set pusher.enabled=true in application.properties
-
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
+    // ZXing pour QR codes
     implementation 'com.google.zxing:core:3.5.3'
     implementation 'com.google.zxing:javase:3.5.3'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// ==================== CONFIGURATION IMPORTANTE ====================
+// Affiche tous les warnings de compilation (très utile pour nettoyer le code)
+tasks.withType(JavaCompile) {
+    options.compilerArgs += [
+        '-Xlint:deprecation',
+        '-Xlint:unchecked',
+        '-Xlint:rawtypes'
+    ]
 }

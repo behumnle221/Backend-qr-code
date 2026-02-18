@@ -1,13 +1,13 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/fapshi_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: "" 
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://mysql-3f9232cd-pewoparfait-02ce.b.aivencloud.com:21097/defaultdb?sslMode=REQUIRED&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: avnadmin
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.c.j.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update  # Change to 'validate' or 'none' in production to avoid accidental schema changes
     show-sql: true
     properties:
       hibernate:
@@ -17,8 +17,8 @@ spring:
     name: fapshi-backend
 
   server:
-    port: 8080
-    address: 0.0.0.0 // pour permettre la connexion depuis l'extérieur comme mon un telephone 
+    port: ${PORT:8080}  # Uses Render's PORT env var if set, otherwise defaults to 8080
+    address: 0.0.0.0  # Allows external connections, good for Render or testing from phone
 
   # =============================================
   # CONFIGURATION EMAIL - À REMPLIR ICI
@@ -26,8 +26,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: pewoparfait@gmail.com                   # ← METS TON EMAIL GMAIL ICI
-    password: nzzinpcmwaauxdja                        # ← METS TON APP PASSWORD ICI (16 caractères, SANS ESPACES)
+    username: pewoparfait@gmail.com  # Your Gmail address (already filled, change if needed)
+    password: nzzinpcmwaauxdja #[PUT YOUR GMAIL APP PASSWORD HERE - it's the 16-character code like nzzinpcmwaauxdja, NO SPACES]
     properties:
       mail:
         smtp:
@@ -42,7 +42,7 @@ logging:
   level:
     org.springframework.security: DEBUG
     org.springframework.web: DEBUG
-    com.fapshi.backend.security: DEBUG
+    com.fapshi.backend.security: DEBUG  # Adjust package if your security package is different
 
 # =============================================
 # CONFIGURATION SWAGGER (déjà bien)
@@ -59,3 +59,4 @@ springdoc:
 app:
   reset-code:
     expiration-minutes: 10  # Durée de validité du code de réinitialisation
+

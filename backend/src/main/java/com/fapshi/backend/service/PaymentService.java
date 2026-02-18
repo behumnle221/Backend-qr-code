@@ -187,7 +187,7 @@ private Map<String, Object> prepareAangaraaPayload(InitiatePaymentRequest reques
     return payload;
 }
 
-@Scheduled(fixedRate = 30000) // Chaque 30 secondes
+@Scheduled(fixedRate = 900000) // Chaque 30 secondes
 @Transactional
 public void checkPendingTransactions() {
 

@@ -16,6 +16,7 @@ import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -49,6 +50,9 @@ public class PaymentService {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Value("${app.aangaraa.webhook-url}")
+    private String webhookUrl;
 
     private static final String APP_KEY = "NRYT-9742-EHQY-QB4B";
 
@@ -163,11 +167,10 @@ private Map<String, Object> prepareAangaraaPayload(InitiatePaymentRequest reques
     payload.put("app_key", APP_KEY);
     payload.put("transaction_id", transaction.getId().toString());
 
-    // ==================== URL NGROK (à jour) ====================
-    String notifyUrl = "https://hector-noncrenated-nondyspeptically.ngrok-free.dev/api/webhook/aangaraa";
-    payload.put("notify_url", notifyUrl);
+    // ==================== URL du webhook (configurable) ====================
+    payload.put("notify_url", webhookUrl);
 
-    log.info("Notify URL envoyée à Aangaraa : {}", notifyUrl);   // ← très utile pour vérifier
+    log.info("Notify URL envoyée à Aangaraa : {}", webhookUrl);   // ← très utile pour vérifier
 
     if (request.isDirectPayment()) {
         // Normalisation du numéro (très important pour Aangaraa)

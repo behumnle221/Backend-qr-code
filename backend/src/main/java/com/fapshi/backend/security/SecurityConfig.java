@@ -29,19 +29,19 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
     .requestMatchers("/api/auth/**").permitAll()
-    .requestMatchers("/api/webhook/**").permitAll()  // 🔶 Webhooks d'Aangaraa (pas d'authentification)
+    .requestMatchers("/api/webhook/**").permitAll()
     .requestMatchers("/error").permitAll()
     .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
     .requestMatchers("/v3/api-docs/**").permitAll()
+    
+    // TEMPORAIRE: Tester l'initiation de paiement sans restriction
+    .requestMatchers("/api/payments/initiate").permitAll()
     
     // QR generation : vendeurs seulement
     .requestMatchers("/api/qr/generate").hasRole("VENDEUR")
     
     // Solde vendeur : vendeurs seulement
     .requestMatchers("/api/vendeur/**").hasRole("VENDEUR")
-    
-    // Paiement initiation : clients (ou clients + vendeurs)
-    .requestMatchers("/api/payments/initiate").hasAnyRole("CLIENT", "VENDEUR")
     
     // Autres endpoints paiement : authentifiés
     .requestMatchers("/api/payments/**").authenticated()

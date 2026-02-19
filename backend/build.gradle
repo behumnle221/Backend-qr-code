@@ -65,3 +65,7 @@ tasks.withType(JavaCompile) {
         '-Xlint:rawtypes'
     ]
 }
+// ==================== AJOUTE ÇA À LA FIN DU FICHIER ====================
+bootJar {
+    archiveFileName = 'app.jar'   // nom fixe → plus simple sur Render
+}

@@ -1,4 +1,7 @@
 spring:
+  application:
+    name: fapshi-backend
+
   datasource:
     url: jdbc:mysql://mysql-3f9232cd-pewoparfait-02ce.b.aivencloud.com:21097/defaultdb?sslMode=REQUIRED&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: avnadmin
@@ -6,57 +9,14 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
-      ddl-auto: update  # Change to 'validate' or 'none' in production to avoid accidental schema changes
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
         format_sql: true
 
-  application:
-    name: fapshi-backend
-
-  server:
-    port: ${PORT:8080}  # Uses Render's PORT env var if set, otherwise defaults to 8080
-    address: 0.0.0.0  # Allows external connections, good for Render or testing from phone
-
-  # =============================================
-  # CONFIGURATION EMAIL - À REMPLIR ICI
-  # =============================================
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: pewoparfait@gmail.com  # Your Gmail address (already filled, change if needed)
-    password: ${GMAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-
-# =============================================
-# CONFIGURATION LOGS (déjà bien)
-# =============================================
-logging:
-  level:
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
-    com.fapshi.backend.security: DEBUG  # Adjust package if your security package is different
-
-# =============================================
-# CONFIGURATION SWAGGER (déjà bien)
-# =============================================
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
-  api-docs:
-    path: /v3/api-docs
-
-# =============================================
-# CONFIGURATION SUPPLÉMENTAIRE (optionnelle mais utile)
-# =============================================
-app:
-  reset-code:
-    expiration-minutes: 10  # Durée de validité du code de réinitialisation
-
+server:
+  port: ${PORT:8080}
+  address: 0.0.0.0

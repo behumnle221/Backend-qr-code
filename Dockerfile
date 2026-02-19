@@ -1,11 +1,17 @@
-# Étape 1: Build l'app avec Gradle
+# ====================== BUILD STAGE ======================
 FROM gradle:8.5-jdk17 AS build
-COPY backend /app
 WORKDIR /app
-RUN gradle clean build -x test
+COPY backend /app
 
-# Étape 2: Image finale légère avec JDK
+# Build avec le nom fixe
+RUN ./gradlew clean bootJar -x test --no-daemon
+
+# ====================== RUNTIME STAGE ======================
 FROM eclipse-temurin:17-jre-jammy
-COPY --from=build /app/build/libs/backend-0.0.1-SNAPSHOT.jar /app.jar
+WORKDIR /app
+
+# Copie le fichier avec le nom fixe que nous venons de définir
+COPY --from=build /app/build/libs/app.jar app.jar
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

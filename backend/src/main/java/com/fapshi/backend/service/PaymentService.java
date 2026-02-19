@@ -153,7 +153,12 @@ public class PaymentService {
                 checkBody.put("payToken", t.getPayToken());
                 checkBody.put("app_key", APP_KEY);
 
-                ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(URL_CHECK, checkBody, (Class<Map<String, Object>>)(Class<?>)Map.class);
+                ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    URL_CHECK,
+                    HttpMethod.POST,
+                    new HttpEntity<>(checkBody),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+                );
                 
                 if (response.getBody() != null) {
                     String apiStatus = String.valueOf(response.getBody().getOrDefault("status", "PENDING"));

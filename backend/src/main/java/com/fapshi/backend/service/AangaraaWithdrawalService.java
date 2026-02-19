@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.core.ParameterizedTypeReference;
+
 /**
  * Service pour l'intégration avec l'API AangaraaPay
  * Gère : consultation du solde, infos utilisateur, retraits, vérification statut
@@ -43,8 +45,14 @@ public class AangaraaWithdrawalService {
      */
     public boolean isServiceAvailable() {
         try {
-            Map<String, Object> response = restTemplate.getForObject(URL_BALANCE + appKey, Map.class);
-            return response != null && response.get("data") != null;
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                URL_BALANCE + appKey,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            Map<String, Object> body = response.getBody();
+            return body != null && body.get("data") != null;
         } catch (Exception e) {
             log.error("Service AangaraaPay non disponible: {}", e.getMessage());
             return false;
@@ -60,15 +68,16 @@ public class AangaraaWithdrawalService {
         try {
             log.info("Appel API balance avec appKey: {}", appKey);
             
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 URL_BALANCE + appKey,
                 HttpMethod.GET,
                 null,
-                Map.class
+                new ParameterizedTypeReference<Map<String, Object>>() {}
             );
             
             if (response.getBody() != null) {
                 Map<String, Object> result = new HashMap<>();
+                @SuppressWarnings("unchecked")
                 Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
                 
                 if (data != null) {
@@ -115,15 +124,16 @@ public class AangaraaWithdrawalService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
             
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 URL_GET_USER,
                 HttpMethod.POST,
                 entity,
-                Map.class
+                new ParameterizedTypeReference<Map<String, Object>>() {}
             );
             
             if (response.getBody() != null) {
                 Map<String, Object> result = new HashMap<>();
+                @SuppressWarnings("unchecked")
                 Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
                 
                 if (data != null) {
@@ -177,11 +187,11 @@ public class AangaraaWithdrawalService {
             log.info("Appel API withdrawal - Phone: {}, Amount: {}, Method: {}", 
                      cleanPhone, amount, paymentMethod);
             
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 URL_WITHDRAWAL,
                 HttpMethod.POST,
                 entity,
-                Map.class
+                new ParameterizedTypeReference<Map<String, Object>>() {}
             );
             
             if (response.getBody() != null) {
@@ -198,6 +208,7 @@ public class AangaraaWithdrawalService {
                 result.put("message", data.get("message"));
                 
                 if (data.get("data") != null) {
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> txData = (Map<String, Object>) data.get("data");
                     result.put("referenceId", txData.get("reference_id"));
                     result.put("transactionId", txData.get("transaction_id"));
@@ -235,11 +246,11 @@ public class AangaraaWithdrawalService {
             log.info("Vérification statut retrait - TransactionID: {}, Method: {}", 
                      transactionId, paymentMethod);
             
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 url,
                 HttpMethod.GET,
                 null,
-                Map.class
+                new ParameterizedTypeReference<Map<String, Object>>() {}
             );
             
             if (response.getBody() != null) {

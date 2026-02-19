@@ -18,5 +18,5 @@ spring:
         format_sql: true
 
 server:
-  port: ${PORT:8080}
+  port: ${PORT}
   address: 0.0.0.0

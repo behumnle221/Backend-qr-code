@@ -19,7 +19,7 @@ Backend application for a point-of-sale (POS) payment system using QR codes.
 # Install dependencies
 # Configure environment variables
 ```
-
+md
 ## Usage
 [Add usage instructions]
 

@@ -28,12 +28,31 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/v3/api-docs/**").permitAll()
-                .requestMatchers("/api/qr/generate").hasRole("VENDEUR")
-                .anyRequest().authenticated()
-            )
+    .requestMatchers("/api/auth/**").permitAll()
+
+    .requestMatchers("/api/webhook/**").permitAll()
+
+    .requestMatchers("/error").permitAll()
+
+    .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
+    
+    .requestMatchers("/v3/api-docs/**").permitAll()
+    
+    // TEMPORAIRE: Tester l'initiation de paiement sans restriction
+    .requestMatchers("/api/payments/initiate").permitAll()
+    
+    // QR generation : vendeurs seulement
+    .requestMatchers("/api/qr/generate").hasRole("VENDEUR")
+    
+    // Solde vendeur : vendeurs seulement
+    .requestMatchers("/api/vendeur/**").hasRole("VENDEUR")
+    
+    // Autres endpoints paiement : authentifiés
+    .requestMatchers("/api/payments/**").authenticated()
+    
+    // Tout le reste nécessite authentification
+    .anyRequest().authenticated()
+)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -35,7 +35,12 @@ public class TransactionService {
     }
 
     // Transactions reçues par un vendeur
-    public List<Transaction> findByVendeurId(Long vendeurId) {
-        return transactionRepository.findByVendeurId(vendeurId);
-    }
+    // public List<Transaction> findByVendeurId(Long vendeurId) {
+    //     return transactionRepository.findByVendeurId(vendeurId);
+    // }
+    // Transactions reçues par un vendeur
+public List<Transaction> findByVendeurId(Long vendeurId) {
+    // On appelle la méthode telle qu'elle est définie dans le Repository
+    return transactionRepository.findByQrCodeVendeurId(vendeurId);
+}
 }

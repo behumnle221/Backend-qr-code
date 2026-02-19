@@ -40,34 +40,17 @@ public class QRCodeController {
     /**
      * Génère un QR Code pour un vendeur connecté.
      */
-    @Operation(summary = "Générer un QR Code", description = "Crée un QR Code pour un paiement. Réservé aux vendeurs.")
     @PostMapping("/generate")
     @PreAuthorize("hasAuthority('VENDEUR')")
     public ResponseEntity<ApiResponse<QrCodeResponse>> generateQRCode(@Valid @RequestBody GenerateQrRequest request) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();  // ← Correction : username (pas email)
+        String username = auth.getName();
 
         Vendeur vendeur = vendeurService.findByEmail(username)
+                .or(() -> vendeurService.findByTelephone(username))
                 .orElseThrow(() -> new RuntimeException("Vendeur non trouvé."));
 
-        QRCode qrCode = new QRCode();
-        qrCode.setVendeur(vendeur);
-        qrCode.setMontant(request.getMontant());
-        qrCode.setDescription(request.getDescription());
-        qrCode.setDateExpiration(request.getDateExpiration());
-        qrCode.setContenu("QR pour paiement " + request.getMontant() + " XAF");
-        qrCode.setHash("HASH-" + System.currentTimeMillis());
-
-        QRCode savedQr = qrCodeService.save(qrCode);
-
-        QrCodeResponse response = new QrCodeResponse(
-                savedQr.getId(),
-                savedQr.getContenu(),
-                savedQr.getMontant(),
-                savedQr.getDescription(),
-                savedQr.getDateExpiration(),
-                savedQr.isEstUtilise()
-        );
+        QrCodeResponse response = qrCodeService.generateQRCode(request, vendeur);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(response, "QR Code généré avec succès"));
@@ -82,7 +65,7 @@ public class QRCodeController {
     public ResponseEntity<ApiResponse<List<QrCodeSummaryResponse>>> getMyQRCodes() {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();  // ← Correction : username (pas usermane)
+        String username = auth.getName();  
 
         Vendeur vendeur = vendeurService.findByEmail(username)
                 .or(() -> vendeurService.findByTelephone(username))
@@ -109,6 +92,7 @@ public class QRCodeController {
      * Valide un QR Code lors du scan par un client.
      * Accessible à tous (pas de rôle requis).
      */
+
     @Operation(summary = "Valider / Scanner un QR Code", description = "Vérifie si le QR est valide, non expiré et non utilisé.")
     @GetMapping("/validate/{qrCodeId}")
     public ResponseEntity<ApiResponse<QrValidationResponse>> validateQrCode(@PathVariable Long qrCodeId) {
@@ -121,10 +105,12 @@ public class QRCodeController {
         }
     }
 
+
     /**
      * Marque un QR Code comme utilisé après paiement réussi.
      * Réservé au vendeur propriétaire du QR.
      */
+
     @Operation(summary = "Marquer un QR Code comme utilisé", description = "Met estUtilise = true après un paiement confirmé. Réservé au vendeur.")
     @PutMapping("/{id}/mark-used")
     @PreAuthorize("hasAuthority('VENDEUR')")
@@ -145,3 +131,4 @@ public class QRCodeController {
         }
     }
 }
+

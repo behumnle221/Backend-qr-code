@@ -82,11 +82,25 @@ public class AangaraaWithdrawalService {
                 
                 if (data != null) {
                     result.put("success", true);
-                    result.put("totalBalance", data.get("total_balance"));
-                    result.put("currency", data.get("currency"));
-                    result.put("operators", data.get("operators"));
-                    result.put("lastUpdated", data.get("last_updated"));
-                    log.info("Solde récupéré: {} {}", data.get("total_balance"), data.get("currency"));
+                    // Correction: les noms des champs dans la réponse API
+                    result.put("totalBalance", data.get("balance_in_db"));
+                    
+                    result.put("currency", "XAF"); // Devise par défaut
+                    
+                    // Extraire les détails par opérateur
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> balanceDetails = (Map<String, Object>) data.get("balance_details");
+                    if (balanceDetails != null) {
+                        result.put("operators", balanceDetails);
+                        // Extraire le total
+                        Map<String, Object> total = (Map<String, Object>) balanceDetails.get("total");
+                        if (total != null) {
+                            result.put("totalBalance", total.get("amount"));
+                            result.put("transactionsCount", total.get("transactions_count"));
+                        }
+                    }
+                    
+                    log.info("Solde récupéré: {} XAF", data.get("balance_in_db"));
                     return result;
                 }
             }

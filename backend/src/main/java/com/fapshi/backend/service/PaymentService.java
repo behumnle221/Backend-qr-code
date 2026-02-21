@@ -40,8 +40,32 @@ public class PaymentService {
     @Autowired private VendeurService vendeurService;
     @Autowired private RestTemplate restTemplate;
 
-    @Value("${app.aangaraa.webhook-url:https://backend-qr-code-u2kx.onrender.com/api/webhook/aangaraa}")
+    @Value("${app.aangaraa.webhook-url:}")
     private String webhookUrl;
+
+    // Fallback URL si variable d'environnement non définie
+    private String getWebhookUrl() {
+        // D'abord vérifier la variable d'environnement AANGARAA_WEBHOOK_URL
+        String envWebhookUrl = System.getenv("AANGARAA_WEBHOOK_URL");
+        if (envWebhookUrl != null && !envWebhookUrl.isEmpty()) {
+            log.info("🔗 Utilisation de AANGARAA_WEBHOOK_URL: {}", envWebhookUrl);
+            return envWebhookUrl;
+        }
+        
+        // Fallback: vérifier la propriété Spring
+        if (webhookUrl != null && !webhookUrl.isEmpty()) {
+            return webhookUrl;
+        }
+        
+        // Dernier fallback: utiliser RENDER_EXTERNAL_URL
+        String renderUrl = System.getenv("RENDER_EXTERNAL_URL");
+        if (renderUrl != null && !renderUrl.isEmpty()) {
+            return renderUrl + "/api/webhook/aangaraa";
+        }
+        
+        // URL de secours
+        return "https://backend-qr-code-u2kx.onrender.com/api/webhook/aangaraa";
+    }
 
     private static final String APP_KEY = "NRYT-9742-EHQY-QB4B";
     private static final String URL_DIRECT   = "https://api-production.aangaraa-pay.com/api/v1/no_redirect/payment";
@@ -221,7 +245,12 @@ public class PaymentService {
         payload.put("description", "Paiement QR Code " + qrCode.getId());
         payload.put("app_key", APP_KEY);
         payload.put("transaction_id", transaction.getId().toString());
-        payload.put("notify_url", webhookUrl);
+        
+        // Utiliser la méthode getWebhookUrl() qui lit la variable d'environnement
+        String notifyUrl = getWebhookUrl();
+        payload.put("notify_url", notifyUrl);
+        log.info("📤 URL de notification envoyée à AangaraaPay: {}", notifyUrl);
+        
         payload.put("return_url", "https://example.com/success");
 
         if (request.isDirectPayment()) {

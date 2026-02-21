@@ -44,51 +44,82 @@ public class WebhookController {
         log.info("Payload complet : {}", payload);
 
         try {
-            String payToken = (String) payload.getOrDefault("payToken", payload.get("paytoken"));
+            // Support de plusieurs formats de champs (payToken, paytoken, token)
+            String payToken = (String) payload.getOrDefault("payToken", 
+                         payload.getOrDefault("paytoken", 
+                         payload.get("token")));
             String status   = (String) payload.get("status");
 
             if (payToken == null || status == null) {
                 log.error("❌ Webhook invalide : payToken ou status manquant");
+                log.error("🔍 Payload reçu : {}", payload);
                 return ResponseEntity.ok("OK");
             }
 
-            // Création d’un lock pour ce payToken
+            log.info("📝 PayToken: {}, Status: {}", payToken, status);
+
+            // Normaliser le statut (AangaraaPay envoie SUCCESSFUL, FAILED, PENDING)
+            String normalizedStatus = status.toUpperCase();
+            
+            // Création d'un lock pour ce payToken
             Object lock = locks.computeIfAbsent(payToken, k -> new Object());
 
             synchronized (lock) {
                 Optional<Transaction> optTransaction = transactionRepository.findByPayToken(payToken);
+                
+                // Si pas trouvé par payToken, essayer par transaction_id
                 if (optTransaction.isEmpty()) {
                     log.warn("⚠️ Transaction non trouvée pour payToken: {}", payToken);
-                    return ResponseEntity.ok("OK");
+                    log.warn("🔍 Recherche alternative par transaction_id dans le payload...");
+                    Object transId = payload.get("transaction_id");
+                    if (transId != null) {
+                        try {
+                            Long tId = Long.parseLong(transId.toString());
+                            optTransaction = transactionRepository.findById(tId);
+                            if (optTransaction.isPresent()) {
+                                log.info("✅ Transaction trouvée par transaction_id: {}", tId);
+                            }
+                        } catch (NumberFormatException e) {
+                            log.error("Impossible de parser transaction_id: {}", transId);
+                        }
+                    }
+                    if (optTransaction.isEmpty()) {
+                        log.error("❌ Transaction introuvable même avec recherche alternative");
+                        return ResponseEntity.ok("OK");
+                    }
                 }
 
                 Transaction transaction = optTransaction.get();
-                log.info("✅ Transaction trouvée → ID: {} | Ancien statut: {}", 
-                         transaction.getId(), transaction.getStatut());
+                log.info("✅ Transaction trouvée → ID: {} | Ancien statut: {} | PayToken: {}", 
+                         transaction.getId(), transaction.getStatut(), transaction.getPayToken());
 
-                status = status.toUpperCase();
+                // Éviter de traiter deux fois une transaction déjà réussie
+                if ("SUCCESS".equals(transaction.getStatut())) {
+                    log.info("⏭️ Transaction {} déjà traitée comme SUCCESS, ignorée", transaction.getId());
+                    return ResponseEntity.ok("OK");
+                }
 
-                switch (status) {
+                switch (normalizedStatus) {
                     case "SUCCESSFUL":
-                        if (!"SUCCESS".equals(transaction.getStatut())) {
-                            transaction.setStatut("SUCCESS");
-                            handleSuccess(transaction);
-                        }
+                    case "SUCCESS":
+                        transaction.setStatut("SUCCESS");
+                        handleSuccess(transaction);
+                        log.info("✅ Transaction {} marquée comme SUCCESS", transaction.getId());
                         break;
 
                     case "FAILED":
                     case "CANCELLED":
-                        if (!"FAILED".equals(transaction.getStatut())) {
-                            transaction.setStatut("FAILED");
-                        }
+                    case "CANCELED":
+                        transaction.setStatut("FAILED");
+                        log.info("❌ Transaction {} marquée comme FAILED", transaction.getId());
                         break;
 
                     case "PENDING":
-                        log.info("Transaction {} reste PENDING", transaction.getId());
+                        log.info("⏳ Transaction {} reste PENDING", transaction.getId());
                         break;
 
                     default:
-                        log.warn("Statut inconnu reçu pour transaction {}: {}", transaction.getId(), status);
+                        log.warn("⚠️ Statut inconnu reçu pour transaction {}: {}", transaction.getId(), normalizedStatus);
                         break;
                 }
 
@@ -109,22 +140,45 @@ public class WebhookController {
 
     private void handleSuccess(Transaction transaction) {
         try {
+            log.info("🔄 Début du traitement handleSuccess pour transaction {}", transaction.getId());
+            
+            // 1. Marquer le QR code comme utilisé
             QRCode qrCode = transaction.getQrCode();
             if (qrCode != null) {
                 qrCode.setEstUtilise(true);
                 qrCodeRepository.save(qrCode);
+                log.info("✅ QR Code {} marqué comme utilisé", qrCode.getId());
+            } else {
+                log.warn("⚠️ QR Code null pour transaction {}", transaction.getId());
             }
 
+            // 2. Augmenter le solde du vendeur
             Vendeur vendeur = qrCode != null ? qrCode.getVendeur() : null;
             if (vendeur != null) {
                 BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : transaction.getMontant();
+                log.info("💰 Montant net à créditer: {}", montantNet);
+                log.info("💰 Solde actuel du vendeur {}: {}", vendeur.getId(), vendeur.getSoldeVirtuel());
+                
                 vendeurService.augmenterSolde(vendeur.getId(), montantNet);
-                log.info("💰 Solde vendeur {} augmenté de {}", vendeur.getId(), montantNet);
+                
+                log.info("💰 Solde vendeur {} augmenté de {}. Nouveau solde: {}", 
+                    vendeur.getId(), montantNet, 
+                    findVendeurById(vendeur.getId()).map(v -> v.getSoldeVirtuel()).orElse(BigDecimal.ZERO));
+            } else {
+                log.error("❌ Vendeur null pour transaction {}", transaction.getId());
             }
+            
+            log.info("✅ Fin du traitement handleSuccess pour transaction {}", transaction.getId());
         } catch (Exception e) {
-            log.error("❌ Erreur lors du traitement SUCCESS pour transaction {}: {}", transaction.getId(), e.getMessage());
+            log.error("❌ Erreur lors du traitement SUCCESS pour transaction {}: {}", transaction.getId(), e.getMessage(), e);
         }
     }
+    
+    // Methode helper pour récupérer le vendeur mis à jour
+    private Optional<Vendeur> findVendeurById(Long id) {
+        return vendeurService.findById(id);
+    }
+    
 
     @PostMapping("/test-aangaraa")
     public ResponseEntity<String> testWebhook(@RequestParam Long transactionId, @RequestParam String status) {
@@ -140,5 +194,3 @@ public class WebhookController {
         }
     }
 }
-
-

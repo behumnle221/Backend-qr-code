@@ -251,7 +251,11 @@ public class PaymentService {
         payload.put("notify_url", notifyUrl);
         log.info("📤 URL de notification envoyée à AangaraaPay: {}", notifyUrl);
         
-        payload.put("return_url", "https://example.com/success");
+        
+        // Return URL - Optionnel pour applications mobiles
+        // Pas nécessaire car l'app gère le résultat via callback natif
+        // payload.put("return_url", "https://parfait217.github.io/qrcode-pay-success/");
+
 
         if (request.isDirectPayment()) {
             String phone = request.getTelephoneClient().trim().replaceAll("[^0-9]", "");
@@ -263,3 +267,4 @@ public class PaymentService {
         return payload;
     }
 }
+

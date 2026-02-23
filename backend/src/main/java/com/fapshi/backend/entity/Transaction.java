@@ -13,7 +13,8 @@ public class Transaction {
     private Long id;
     
     // ID unique au format TRANS_1769339875485 (TRANS_timestamp)
-    @Column(unique = true)
+    
+    @Column
     private String transactionId;
     @ManyToOne
     @JoinColumn(name = "client_id")

@@ -94,9 +94,10 @@ public class PaymentService {
         transaction.setStatut("PENDING");
         transaction.setDateCreation(LocalDateTime.now());
         
-        // Générer le transactionId au format TRANS_1769339875485 (TRANS_timestamp)
+        // Générer le transactionId au format TRANS_1769339875485 (TRANS_timestamp + random)
         long timestamp = System.currentTimeMillis();
-        transaction.setTransactionId("TRANS_" + timestamp);
+        int random = (int) (Math.random() * 10000); // 4 chiffres aléatoires
+        transaction.setTransactionId("TRANS_" + timestamp + "_" + random);
 
         calculateCommissionAndNetAmount(transaction);
         transaction = transactionRepository.save(transaction);

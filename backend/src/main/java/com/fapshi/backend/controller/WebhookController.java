@@ -2,7 +2,6 @@ package com.fapshi.backend.controller;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -88,10 +87,11 @@ public class WebhookController {
             WebhookNotification notification = new WebhookNotification();
             notification.setDateReception(LocalDateTime.now());
             
-            String payToken = (String) payload.getOrDefault("payToken", 
+            payToken = (String) payload.getOrDefault("payToken", 
                          payload.getOrDefault("paytoken", 
                          payload.get("token")));
-            String status = (String) payload.get("status");
+            
+            status = (String) payload.get("status");
             String transactionIdExterne = (String) payload.get("transaction_id");
             
             notification.setPayToken(payToken);

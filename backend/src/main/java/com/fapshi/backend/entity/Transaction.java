@@ -11,6 +11,10 @@ public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    
+    // ID unique au format TRANS_1769339875485 (TRANS_timestamp)
+    @Column(unique = true)
+    private String transactionId;
     @ManyToOne
     @JoinColumn(name = "client_id")
     private Client client;  
@@ -55,6 +59,7 @@ public class Transaction {
 
     // GETTERS MANUELS
     public Long getId() { return id; }
+    public String getTransactionId() { return transactionId; }
     public QRCode getQrCode() { return qrCode; }
     public String getTelephoneClient() { return telephoneClient; }
     public BigDecimal getMontant() { return montant; }
@@ -71,6 +76,7 @@ public class Transaction {
 
     // SETTERS MANUELS
     public void setId(Long id) { this.id = id; }
+    public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
     public void setQrCode(QRCode qrCode) { this.qrCode = qrCode; }
     public void setTelephoneClient(String telephoneClient) { this.telephoneClient = telephoneClient; }
     public void setMontant(BigDecimal montant) { this.montant = montant; }

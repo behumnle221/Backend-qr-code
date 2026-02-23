@@ -13,3 +13,4 @@ package com.fapshi.backend.config;
 public class PusherConfig {
     // Intentionally left empty in this environment.
 }
+ 

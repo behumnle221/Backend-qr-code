@@ -1,22 +1,34 @@
 package com.fapshi.backend.controller;
 
-import com.fapshi.backend.entity.QRCode;
-import com.fapshi.backend.entity.Transaction;
-import com.fapshi.backend.entity.Vendeur;
-import com.fapshi.backend.repository.QRCodeRepository;
-import com.fapshi.backend.repository.TransactionRepository;
-import com.fapshi.backend.service.VendeurService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
-
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.fapshi.backend.entity.QRCode;
+import com.fapshi.backend.entity.Transaction;
+import com.fapshi.backend.entity.Vendeur;
+import com.fapshi.backend.entity.WebhookNotification;
+import com.fapshi.backend.repository.QRCodeRepository;
+import com.fapshi.backend.repository.TransactionRepository;
+import com.fapshi.backend.repository.WebhookNotificationRepository;
+import com.fapshi.backend.service.VendeurService;
 
 @RestController
 @RequestMapping("/api/webhook")
@@ -33,23 +45,79 @@ public class WebhookController {
     @Autowired
     private VendeurService vendeurService;
 
+    @Autowired
+    private WebhookNotificationRepository webhookNotificationRepository;
+
     // Map statique pour verrouiller le traitement par payToken
     private static final ConcurrentHashMap<String, Object> locks = new ConcurrentHashMap<>();
 
     @PostMapping("/aangaraa")
     @Transactional
-    public ResponseEntity<String> handleAangaraaWebhook(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<String> handleAangaraaWebhook(
+            @RequestBody Map<String, Object> payload,
+            @RequestHeader HttpHeaders headers) {
 
-        log.info("🔔 WEBHOOK REÇU D'AANGARAA");
-        log.info("Payload complet : {}", payload);
-
+        // ============================================
+        // 📝 LOGS DÉTAILLÉS POUR VÉRIFICATION
+        // ============================================
+        
+        log.info("═══════════════════════════════════════════════════════════════");
+        log.info("🔔 WEBHOOK REÇU - HORODATAGE: {}", LocalDateTime.now());
+        log.info("═══════════════════════════════════════════════════════════════");
+        
+        // Log des headers pour vérifier la source
+        log.info("📋 EN-TÊTES REÇUS:");
+        for (Map.Entry<String, String> entry : headers.toSingleValueMap().entrySet()) {
+            log.info("   {}: {}", entry.getKey(), entry.getValue());
+        }
+        
+        // Log du payload complet
+        log.info("📦 PAYLOAD COMPLET REÇU:");
+        for (Map.Entry<String, Object> entry : payload.entrySet()) {
+            log.info("   {}: {}", entry.getKey(), entry.getValue());
+        }
+        
+        // ============================================
+        // SAUVEGARDER LA NOTIFICATION DANS LA BASE
+        // ============================================
+        
+        String payToken = null;
+        String status = null;
+        
         try {
-            // Support de plusieurs formats de champs (payToken, paytoken, token)
+            WebhookNotification notification = new WebhookNotification();
+            notification.setDateReception(LocalDateTime.now());
+            
             String payToken = (String) payload.getOrDefault("payToken", 
                          payload.getOrDefault("paytoken", 
                          payload.get("token")));
-            String status   = (String) payload.get("status");
-
+            String status = (String) payload.get("status");
+            String transactionIdExterne = (String) payload.get("transaction_id");
+            
+            notification.setPayToken(payToken);
+            notification.setTransactionIdExterne(transactionIdExterne);
+            notification.setMessage("Payload: " + payload.toString());
+            
+            if (status != null) {
+                try {
+                    notification.setStatus(com.fapshi.backend.enums.StatutTransaction.valueOf(status.toUpperCase()));
+                } catch (Exception e) {
+                    log.warn("⚠️ Statut non reconnu: {}", status);
+                }
+            }
+            
+            webhookNotificationRepository.save(notification);
+            log.info("💾 Notification sauvegardée avec ID: {}", notification.getId());
+            
+        } catch (Exception e) {
+            log.error("❌ Erreur lors de la sauvegarde de la notification: {}", e.getMessage());
+        }
+        
+        // ============================================
+        // TRAITEMENT DU WEBHOOK
+        // ============================================
+        
+        try {
             if (payToken == null || status == null) {
                 log.error("❌ Webhook invalide : payToken ou status manquant");
                 log.error("🔍 Payload reçu : {}", payload);
@@ -73,14 +141,21 @@ public class WebhookController {
                     log.warn("🔍 Recherche alternative par transaction_id dans le payload...");
                     Object transId = payload.get("transaction_id");
                     if (transId != null) {
-                        try {
-                            Long tId = Long.parseLong(transId.toString());
-                            optTransaction = transactionRepository.findById(tId);
-                            if (optTransaction.isPresent()) {
-                                log.info("✅ Transaction trouvée par transaction_id: {}", tId);
+                        // Essayer de trouver par transactionId (format: TRANS_1769339875485)
+                        optTransaction = transactionRepository.findByTransactionId(transId.toString());
+                        if (optTransaction.isEmpty()) {
+                            // Sinon essayer par ID numérique
+                            try {
+                                Long tId = Long.parseLong(transId.toString());
+                                optTransaction = transactionRepository.findById(tId);
+                                if (optTransaction.isPresent()) {
+                                    log.info("✅ Transaction trouvée par ID numérique: {}", tId);
+                                }
+                            } catch (NumberFormatException e) {
+                                log.error("Impossible de parser transaction_id: {}", transId);
                             }
-                        } catch (NumberFormatException e) {
-                            log.error("Impossible de parser transaction_id: {}", transId);
+                        } else {
+                            log.info("✅ Transaction trouvée par transactionId: {}", transId);
                         }
                     }
                     if (optTransaction.isEmpty()) {
@@ -130,6 +205,10 @@ public class WebhookController {
             // Supprime le lock après traitement pour éviter fuite mémoire
             locks.remove(payToken);
 
+            log.info("═══════════════════════════════════════════════════════════════");
+            log.info("✅ FIN DU TRAITEMENT WEBHOOK");
+            log.info("═══════════════════════════════════════════════════════════════");
+            
             return ResponseEntity.ok("OK");
 
         } catch (Exception e) {
@@ -178,7 +257,7 @@ public class WebhookController {
     private Optional<Vendeur> findVendeurById(Long id) {
         return vendeurService.findById(id);
     }
-    
+
 
     @PostMapping("/test-aangaraa")
     public ResponseEntity<String> testWebhook(@RequestParam Long transactionId, @RequestParam String status) {
@@ -191,6 +270,35 @@ public class WebhookController {
             return ResponseEntity.ok("Test OK");
         } else {
             return ResponseEntity.badRequest().body("Transaction non trouvée");
+        }
+    }
+    
+    // ============================================
+    // ENDPOINT POUR VOIR LES NOTIFICATIONS REÇUES
+    // ============================================
+    @PostMapping("/notifications/list")
+    public ResponseEntity<?> getWebhookNotifications() {
+        try {
+            var notifications = webhookNotificationRepository.findAll();
+            log.info("📋 Nombre de notifications reçues: {}", notifications.size());
+            
+            // Retourner sous forme simplifiée
+            java.util.List<Map<String, Object>> result = new java.util.ArrayList<>();
+            for (WebhookNotification n : notifications) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", n.getId());
+                item.put("payToken", n.getPayToken());
+                item.put("status", n.getStatus());
+                item.put("dateReception", n.getDateReception());
+                item.put("traite", n.isTraite());
+                item.put("transactionIdExterne", n.getTransactionIdExterne());
+                result.add(item);
+            }
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("❌ Erreur lors de la récupération des notifications: {}", e.getMessage());
+            return ResponseEntity.status(500).body("Erreur: " + e.getMessage());
         }
     }
 }

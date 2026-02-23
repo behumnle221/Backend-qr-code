@@ -51,4 +51,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     
     // Recherche d'une transaction par son payToken (utilisé pour les webhooks)
     Optional<Transaction> findByPayToken(String payToken);
+    
+    // Recherche d'une transaction par son transactionId (format: TRANS_1769339875485)
+    Optional<Transaction> findByTransactionId(String transactionId);
 }

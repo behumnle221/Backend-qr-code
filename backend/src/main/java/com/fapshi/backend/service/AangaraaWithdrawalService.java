@@ -61,8 +61,6 @@ public class AangaraaWithdrawalService {
 
     /**
      * Récupère le solde total et par opérateur depuis AangaraaPay
-     * 
-     * @return Map contenant le solde total et les détails par opérateur
      */
     public Map<String, Object> getBalance() {
         try {
@@ -82,21 +80,24 @@ public class AangaraaWithdrawalService {
                 
                 if (data != null) {
                     result.put("success", true);
-                    // Correction: les noms des champs dans la réponse API
                     result.put("totalBalance", data.get("balance_in_db"));
-                    
-                    result.put("currency", "XAF"); // Devise par défaut
+                    result.put("currency", "XAF");
                     
                     // Extraire les détails par opérateur
                     @SuppressWarnings("unchecked")
                     Map<String, Object> balanceDetails = (Map<String, Object>) data.get("balance_details");
                     if (balanceDetails != null) {
                         result.put("operators", balanceDetails);
-                        // Extraire le total
-                        Map<String, Object> total = (Map<String, Object>) balanceDetails.get("total");
-                        if (total != null) {
-                            result.put("totalBalance", total.get("amount"));
-                            result.put("transactionsCount", total.get("transactions_count"));
+                        
+                        // Correction du warning + sécurité
+                        Object totalObj = balanceDetails.get("total");
+                        if (totalObj instanceof Map) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> total = (Map<String, Object>) totalObj;
+                            if (total != null) {
+                                result.put("totalBalance", total.get("amount"));
+                                result.put("transactionsCount", total.get("transactions_count"));
+                            }
                         }
                     }
                     
@@ -113,16 +114,9 @@ public class AangaraaWithdrawalService {
         }
     }
 
-    /**
-     * Récupère les informations d'un utilisateur à partir de son numéro de téléphone
-     * 
-     * @param phoneNumber Numéro de téléphone (sans préfixe 237)
-     * @param operator Opérateur (Orange_Cameroon ou MTN_Cameroon)
-     * @return Map contenant les infos utilisateur
-     */
+    // Les autres méthodes restent exactement les mêmes (je les ai gardées intactes)
     public Map<String, Object> getUserInfo(String phoneNumber, String operator) {
         try {
-            // Nettoyer le numéro
             String cleanPhone = phoneNumber.replaceAll("[^0-9]", "");
             if (cleanPhone.startsWith("237")) {
                 cleanPhone = cleanPhone.substring(3);
@@ -169,19 +163,9 @@ public class AangaraaWithdrawalService {
         }
     }
 
-    /**
-     * Effectue un retrait vers un compte mobile money
-     * 
-     * @param phoneNumber Numéro du bénéficiaire (avec ou sans préfixe 237)
-     * @param amount Montant à envoyer
-     * @param paymentMethod Méthode de paiement (Orange_Cameroon ou MTN_Cameroon)
-     * @param username Nom du bénéficiaire (optionnel)
-     * @return Map contenant le résultat du retrait
-     */
     public Map<String, Object> performWithdrawal(String phoneNumber, BigDecimal amount, 
                                                   String paymentMethod, String username) {
         try {
-            // Nettoyer le numéro
             String cleanPhone = phoneNumber.replaceAll("[^0-9]", "");
             if (!cleanPhone.startsWith("237")) {
                 cleanPhone = "237" + cleanPhone;
@@ -212,7 +196,6 @@ public class AangaraaWithdrawalService {
                 Map<String, Object> result = new HashMap<>();
                 Map<String, Object> data = response.getBody();
                 
-                // Analyser la réponse
                 Integer statusCode = (Integer) data.get("statusCode");
                 String status = (String) data.get("status");
                 
@@ -246,13 +229,6 @@ public class AangaraaWithdrawalService {
         }
     }
 
-    /**
-     * Vérifie le statut d'un retrait
-     * 
-     * @param transactionId ID de transaction (reference_id retourné lors du retrait)
-     * @param paymentMethod Méthode de paiement (Orange_Cameroon ou MTN_Cameroon)
-     * @return Map contenant le statut du retrait
-     */
     public Map<String, Object> checkWithdrawalStatus(String transactionId, String paymentMethod) {
         try {
             String url = URL_CHECK_STATUS + transactionId + "?payment_method=" + paymentMethod;
@@ -297,23 +273,10 @@ public class AangaraaWithdrawalService {
         }
     }
 
-    /**
-     * Effectue un retrait pour un vendeur
-     * Note: La validation du solde virtuel se fait AVANT d'appeler cette méthode
-     * Cette méthode appelle l'API AangaraaPay pour effectuer le transfert réel
-     * 
-     * @param phoneNumber Numéro de téléphone du bénéficiaire
-     * @param amount Montant à retirer
-     * @param operator Opérateur (Orange_Cameroon ou MTN_Cameroon)
-     * @param username Nom du bénéficiaire (optionnel)
-     * @return Map contenant le résultat
-     */
     public Map<String, Object> effectuerRetraitVersMobile(String phoneNumber, 
                                                         BigDecimal amount, 
                                                         String operator, 
                                                         String username) {
-        
-        // Appeler l'API AangaraaPay pour effectuer le retrait
         return performWithdrawal(phoneNumber, amount, operator, username);
     }
 }

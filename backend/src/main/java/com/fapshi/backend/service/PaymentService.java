@@ -256,9 +256,10 @@ public class PaymentService {
         log.info("📤 URL de notification envoyée à AangaraaPay: {}", notifyUrl);
         
         
-        // Return URL - Optionnel pour applications mobiles
-        // Pas nécessaire car l'app gère le résultat via callback natif
-        // payload.put("return_url", "https://parfait217.github.io/qrcode-pay-success/");
+        // Return URL - Page de succès après paiement
+        String returnUrl = "https://backend-qr-code-u2kx.onrender.com/api/payment/success";
+        payload.put("return_url", returnUrl);
+        log.info("📤 URL de retour envoyée à AangaraaPay: {}", returnUrl);
 
 
         if (request.isDirectPayment()) {

@@ -2,12 +2,15 @@ package com.fapshi.backend.controller;
 
 import com.fapshi.backend.dto.request.InitiatePaymentRequest;
 import com.fapshi.backend.dto.response.PaymentInitResponse;
+import com.fapshi.backend.entity.Transaction;
+import com.fapshi.backend.repository.TransactionRepository;
 import com.fapshi.backend.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -15,6 +18,9 @@ public class PaymentController {
 
     @Autowired
     private PaymentService paymentService;
+    
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     @PostMapping("/initiate")
     public ResponseEntity<PaymentInitResponse> initiatePayment(@RequestBody InitiatePaymentRequest request) {
@@ -25,20 +31,78 @@ public class PaymentController {
     /**
      * Endpoint de retour après paiement sur AangaraaPay
      * Ce endpoint est appelé par AangaraaPay après que le client a terminé le paiement
+     * 
+     * Note: Le vrai traitement se fait via le webhook /api/webhook/aangaraa
+     * Cet endpoint sert de page de redirection pour le client
      */
     @GetMapping("/success")
     public ResponseEntity<Map<String, Object>> paymentSuccess(
+            @RequestParam(required = false) String token,
             @RequestParam(required = false) String transaction_id,
             @RequestParam(required = false) String status) {
         
-        System.out.println("📥 Retour AangaraaPay - transaction_id: " + transaction_id + ", status: " + status);
+        System.out.println("📥 Retour AangaraaPay - token: " + token + ", transaction_id: " + transaction_id + ", status: " + status);
         
-        // Retourner une page de succès simple
+        // Essayer de trouver la transaction par token ou transaction_id
+        Transaction transaction = null;
+        
+        if (token != null && !token.isEmpty()) {
+            Optional<Transaction> optTrans = transactionRepository.findByPayToken(token);
+            if (optTrans.isPresent()) {
+                transaction = optTrans.get();
+            }
+        }
+        
+        if (transaction == null && transaction_id != null && !transaction_id.isEmpty()) {
+            Optional<Transaction> optTrans = transactionRepository.findByTransactionId(transaction_id);
+            if (optTrans.isPresent()) {
+                transaction = optTrans.get();
+            } else {
+                // Essayer par ID
+                try {
+                    Long tId = Long.parseLong(transaction_id);
+                    Optional<Transaction> optById = transactionRepository.findById(tId);
+                    if (optById.isPresent()) {
+                        transaction = optById.get();
+                    }
+                } catch (NumberFormatException e) {
+                    // Ignore
+                }
+            }
+        }
+        
+        if (transaction != null) {
+            String dbStatus = transaction.getStatut();
+            System.out.println("✅ Transaction trouvée - ID: " + transaction.getId() + ", Statut DB: " + dbStatus);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", "SUCCESS".equals(dbStatus) || "SUCCESSFUL".equals(dbStatus),
+                "message", "SUCCESS".equals(dbStatus) ? "Paiement réussi" : "Paiement " + dbStatus,
+                "transaction_id", transaction.getId(),
+                "status", dbStatus != null ? dbStatus : "unknown",
+                "amount", transaction.getMontant() != null ? transaction.getMontant().toString() : "0",
+                "payToken", transaction.getPayToken() != null ? transaction.getPayToken() : ""
+            ));
+        }
+        
+        // Transaction non trouvée - utiliser les paramètres fournis
+        System.out.println("⚠️ Transaction non trouvée en base");
         return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "Paiement traité avec succès",
+            "success", false,
+            "message", "Transaction non trouvée",
             "transaction_id", transaction_id != null ? transaction_id : "unknown",
             "status", status != null ? status : "unknown"
         ));
+    }
+    
+    /**
+     * Alias pour /success - supporte les deux chemins (/payment/success et /payments/success)
+     */
+    @GetMapping("/payment/success")
+    public ResponseEntity<Map<String, Object>> paymentSuccessAlias(
+            @RequestParam(required = false) String token,
+            @RequestParam(required = false) String transaction_id,
+            @RequestParam(required = false) String status) {
+        return paymentSuccess(token, transaction_id, status);
     }
 }

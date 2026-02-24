@@ -25,8 +25,8 @@ public class QRCodeService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Durée de validité du QR Code en minutes (fixée côté serveur)
-    private static final int QR_CODE_VALIDITY_MINUTES = 5;
+    // Durée de validité du QR Code en minutes (fixée côté serveur) - 24 heures pour la production
+    private static final int QR_CODE_VALIDITY_MINUTES = 1440;
 
     /**
      * Génère un QR Code riche avec la liste des produits.

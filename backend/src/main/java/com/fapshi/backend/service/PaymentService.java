@@ -19,6 +19,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -125,14 +130,32 @@ public class PaymentService {
         // Préparation de l'appel vers Aangaraa
         String url = request.isDirectPayment() ? URL_DIRECT : URL_REDIRECT;
         Map<String, Object> payload = prepareAangaraaPayload(request, qrCode, transaction);
-        log.info("✅ Payload préparé pour Aangaraa");
+        log.info("✅ Payload préparé pour Aangaraa: {}", payload);
 
         try {
             log.info("Appel Aangaraa URL: {} | Transaction ID: {}", url, transaction.getId());
-            AangaraaPaymentResponse apiResponse = restTemplate.postForObject(url, payload, AangaraaPaymentResponse.class);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            
+            ResponseEntity<AangaraaPaymentResponse> responseEntity = restTemplate.exchange(
+                url, HttpMethod.POST, entity, AangaraaPaymentResponse.class);
+            
+            AangaraaPaymentResponse apiResponse = responseEntity.getBody();
 
-            if (apiResponse == null || apiResponse.getData() == null) {
+            if (apiResponse == null) {
                 throw new RuntimeException("Réponse vide de l'API Aangaraa");
+            }
+
+            log.info("📥 Réponse Aangaraa - StatusCode: {}, Message: {}", apiResponse.getStatusCode(), apiResponse.getMessage());
+
+            if (apiResponse.getStatusCode() != 200 && apiResponse.getStatusCode() != 201) {
+                throw new RuntimeException("Erreur Aangaraa: " + apiResponse.getMessage());
+            }
+
+            if (apiResponse.getData() == null) {
+                throw new RuntimeException("Données vides dans la réponse Aangaraa");
             }
 
             AangaraaPaymentResponse.Data data = apiResponse.getData();
@@ -150,9 +173,17 @@ public class PaymentService {
             if (!request.isDirectPayment()) response.setPayUrl(transaction.getPayUrl());
 
             return response;
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            log.error("❌ Erreur de connexion à Aangaraa (timeout ou connexion refusée): {}", e.getMessage());
+            log.error("❌ Détails: ", e);
+            throw new RuntimeException("Impossible de se connecter au service de paiement. Veuillez réessayer plus tard.");
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            log.error("❌ Erreur HTTP de l'API Aangaraa: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Erreur du service de paiement: " + e.getStatusCode());
         } catch (Exception e) {
-            log.error("❌ Erreur lors de l'appel Aangaraa: {}", e.getMessage(), e);
-            throw new RuntimeException("Erreur d'initialisation : " + e.getMessage());
+            log.error("❌ Erreur lors de l'appel Aangaraa: {} - Type: {}", e.getMessage(), e.getClass().getName());
+            log.error("❌ Stack trace: ", e);
+            throw new RuntimeException("Erreur d'initialisation du paiement: " + e.getMessage());
         }
     }
 

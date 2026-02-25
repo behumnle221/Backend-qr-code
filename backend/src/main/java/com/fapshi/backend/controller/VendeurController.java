@@ -24,11 +24,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.Page;
 
@@ -565,4 +568,87 @@ public class VendeurController {
                     .body(new ApiResponse<>(false, "Erreur: " + e.getMessage(), null));
         }
     }
+    
+    /**
+     * Endpoint pour synchroniser tous les retraits PENDING du vendeur
+     * Endpoint : POST /api/vendeur/retraits/sync
+     * Authentification : JWT + rôle VENDEUR
+     */
+    @PostMapping("/retraits/sync")
+    @PreAuthorize("hasAuthority('ROLE_VENDEUR')")
+    public ResponseEntity<ApiResponse<Object>> syncAllRetraits() {
+        try {
+            // Récupérer le vendeur connecté
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            
+            String username = auth.getName();
+            
+            Vendeur vendeur = vendeurService.findByEmail(username)
+
+                    .or(() -> vendeurService.findByTelephone(username))
+
+                    .orElseThrow(() -> new RuntimeException("Vendeur non trouvé"));
+            
+            // Récupérer tous les retraits PENDING
+            List<Retrait> retraitsPending = retraitRepository.findByVendeurId(vendeur.getId())
+                .stream()
+                .filter(r -> "PENDING".equals(r.getStatut()))
+                .toList();
+            
+            log.info("📅 Sync retraits - {} retraits PENDING pour vendeur {}", retraitsPending.size(), vendeur.getId());
+            
+            int successCount = 0;
+            int updatedCount = 0;
+            
+            for (Retrait retrait : retraitsPending) {
+                try {
+                    // Si pas de referenceId, on ne peut pas sync
+                    if (retrait.getReferenceId() == null || retrait.getReferenceId().isBlank()) {
+                        log.warn("⚠️ Retrait {} sans referenceId, ignoré", retrait.getId());
+                        continue;
+                    }
+                    
+                    Map<String, Object> statusResult = aangaraaWithdrawalService.checkWithdrawalStatus(
+                        retrait.getReferenceId(), retrait.getOperateur());
+                    
+                    if (statusResult != null && Boolean.TRUE.equals(statusResult.get("success"))) {
+                        String newStatus = (String) statusResult.get("status");
+                        String message = (String) statusResult.get("message");
+                        
+                        if (newStatus != null && !newStatus.equals(retrait.getStatut())) {
+                            retrait.setStatut(newStatus);
+                            retrait.setMessage(message);
+                            retrait.setDateAttempt(LocalDateTime.now());
+                            retraitRepository.save(retrait);
+                            updatedCount++;
+                            
+                            if ("SUCCESS".equalsIgnoreCase(newStatus) || "SUCCESSFUL".equalsIgnoreCase(newStatus)) {
+                                successCount++;
+                            }
+                            
+                            log.info("✅ Retrait {} sync vers {}", retrait.getId(), newStatus);
+                        }
+                    }
+                } catch (Exception e) {
+
+                    log.error("❌ Erreur sync retrait {}: {}", retrait.getId(), e.getMessage());
+                }
+            }
+            
+            Map<String, Object> result = Map.of(
+                "total", retraitsPending.size(),
+                "updated", updatedCount,
+                "success", successCount
+            );
+            
+            return ResponseEntity.ok(new ApiResponse<>(result, "Sync terminé"));
+            
+        } catch (Exception e) {
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Erreur: " + e.getMessage(), null));
+        }
+    }
 }
+
+

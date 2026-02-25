@@ -83,10 +83,12 @@ public class WebhookController {
         
         String payToken = null;
         String status = null;
+        WebhookNotification notification = null;
         
         try {
-            WebhookNotification notification = new WebhookNotification();
+            notification = new WebhookNotification();
             notification.setDateReception(LocalDateTime.now());
+            notification.setTentatives(1); // Première réception
             
             payToken = (String) payload.getOrDefault("payToken", 
                          payload.getOrDefault("paytoken", 
@@ -98,6 +100,7 @@ public class WebhookController {
             notification.setPayToken(payToken);
             notification.setTransactionIdExterne(transactionIdExterne);
             notification.setMessage("Payload: " + payload.toString());
+            notification.setTraite(false); // Non traité par défaut
             
             if (status != null) {
                 try {
@@ -107,11 +110,14 @@ public class WebhookController {
                 }
             }
             
-            webhookNotificationRepository.save(notification);
-            log.info("💾 Notification sauvegardée avec ID: {}", notification.getId());
+            // SAUVEGARDER TOUJOURS la notification
+            notification = webhookNotificationRepository.save(notification);
+            log.info("💾 Notification webhook sauvegardée en base - ID: {}, payToken: {}, status: {}", 
+                    notification.getId(), payToken, status);
             
         } catch (Exception e) {
             log.error("❌ Erreur lors de la sauvegarde de la notification: {}", e.getMessage());
+            // Ne pas arrêter le traitement si la sauvegarde échoue
         }
         
         // ============================================
@@ -201,6 +207,13 @@ public class WebhookController {
 
                 transactionRepository.save(transaction);
                 log.info("✅ Webhook traité → Transaction {} → {}", transaction.getId(), transaction.getStatut());
+                
+                // MARQUER LA NOTIFICATION COMME TRAITÉE
+                if (notification != null) {
+                    notification.setTraite(true);
+                    webhookNotificationRepository.save(notification);
+                    log.info("✅ Notification {} marquée comme traitée", notification.getId());
+                }
             }
 
             // Supprime le lock après traitement pour éviter fuite mémoire
@@ -302,4 +315,38 @@ public class WebhookController {
             return ResponseEntity.status(500).body("Erreur: " + e.getMessage());
         }
     }
+    
+    // ============================================
+    // ENDPOINT DE TEST - Sauvegarder une notification manuellement
+    // ============================================
+    @PostMapping("/test-save-notification")
+    public ResponseEntity<?> testSaveNotification(@RequestBody Map<String, Object> payload) {
+        try {
+            WebhookNotification notification = new WebhookNotification();
+            notification.setDateReception(LocalDateTime.now());
+            notification.setPayToken((String) payload.getOrDefault("payToken", "TEST_" + System.currentTimeMillis()));
+            notification.setStatus(com.fapshi.backend.enums.StatutTransaction.PENDING);
+            notification.setMessage("Test: " + payload.toString());
+            notification.setTraite(false);
+            notification.setTentatives(1);
+            notification.setTransactionIdExterne((String) payload.get("transaction_id"));
+            
+            notification = webhookNotificationRepository.save(notification);
+            
+            log.info("✅ Notification de test sauvegardée avec ID: {}", notification.getId());
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Notification sauvegardée",
+                "id", notification.getId()
+            ));
+        } catch (Exception e) {
+            log.error("❌ Erreur lors du test: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Erreur: " + e.getMessage()
+            ));
+        }
+    }
 } 
+
+

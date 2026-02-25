@@ -206,24 +206,55 @@ public class AangaraaWithdrawalService {
                 
                 Integer statusCode = (Integer) data.get("statusCode");
                 String status = (String) data.get("status");
+                String message = (String) data.get("message");
                 
-                result.put("success", statusCode != null && statusCode == 200);
+                // Log complet de la réponse pour debug
+                log.info("📥 Réponse Aangaraa withdrawal - statusCode: {}, status: {}, message: {}", 
+                        statusCode, status, message);
+                log.info("📥 Réponse complète: {}", data);
+                
+                // Déterminer success basé sur statusCode ET status
+                boolean isSuccess = (statusCode != null && statusCode == 200) 
+                                    || "SUCCESSFUL".equalsIgnoreCase(status)
+                                    || "SUCCESS".equalsIgnoreCase(status);
+                
+                result.put("success", isSuccess);
                 result.put("statusCode", statusCode);
                 result.put("status", status);
-                result.put("message", data.get("message"));
+                result.put("message", message);
                 
                 if (data.get("data") != null) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> txData = (Map<String, Object>) data.get("data");
-                    result.put("referenceId", txData.get("reference_id"));
-                    result.put("transactionId", txData.get("transaction_id"));
+                    
+                    // Extraire reference_id (plusieurs formats possibles)
+                    String refId = (String) txData.get("reference_id");
+                    if (refId == null) {
+                        refId = (String) txData.get("referenceId");
+                    }
+                    if (refId == null) {
+                        refId = (String) txData.get("referenceId");
+                    }
+                    
+                    String txId = (String) txData.get("transaction_id");
+                    if (txId == null) {
+                        txId = (String) txData.get("transactionId");
+                    }
+                    
+                    result.put("referenceId", refId);
+                    result.put("transactionId", txId);
                     result.put("amount", txData.get("amount"));
                     result.put("phoneNumber", txData.get("phone_number"));
                     result.put("paymentMethod", txData.get("payment_method"));
                     result.put("txMessage", txData.get("message"));
                     
-                    log.info("Retrait effectué - Status: {}, Reference: {}", 
-                             status, txData.get("reference_id"));
+                    // Si le data contient status, l'utiliser
+                    if (txData.get("status") != null && result.get("status") == null) {
+                        result.put("status", txData.get("status"));
+                    }
+                    
+                    log.info("📥 Retrait - Status: {}, Reference: {}, TransactionId: {}", 
+                             status, refId, txId);
                 }
                 
                 return result;

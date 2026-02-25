@@ -338,6 +338,23 @@ public class VendeurController {
             String referenceId = (String) withdrawalResult.get("referenceId");
             String message = (String) withdrawalResult.get("message");
             
+            // Log complet du résultat pour debug
+            log.info("💰 Résultat retrait complet: {}", withdrawalResult);
+            log.info("💰 referenceId extrait: {}", referenceId);
+            log.info("💰 txMessage: {}", withdrawalResult.get("txMessage"));
+            log.info("💰 status: {}", withdrawalResult.get("status"));
+            
+            // Si referenceId null, essayer transactionId
+            if (referenceId == null) {
+                referenceId = (String) withdrawalResult.get("transactionId");
+                log.info("💰 referenceId depuis transactionId: {}", referenceId);
+            }
+            
+            // Utiliser txMessage si message est null
+            if (message == null || message.isBlank()) {
+                message = (String) withdrawalResult.get("txMessage");
+            }
+            
             // Déterminer le statut
             String statut = "PENDING";
             if (Boolean.TRUE.equals(withdrawalResult.get("success"))) {

@@ -15,6 +15,9 @@ public interface RetraitRepository extends JpaRepository<Retrait, Long> {
     // Récupérer tous les retraits d'un vendeur
     List<Retrait> findByVendeurId(Long vendeurId);
     
+    // Récupérer les retraits par statut
+    List<Retrait> findByStatut(String statut);
+    
     // Récupérer le dernier retrait d'un vendeur (pour vérifier l'écart 5h)
     @Query("SELECT r FROM Retrait r WHERE r.vendeur.id = :vendeurId ORDER BY r.dateCreation DESC LIMIT 1")
     Optional<Retrait> findLastRetraitByVendeur(@Param("vendeurId") Long vendeurId);

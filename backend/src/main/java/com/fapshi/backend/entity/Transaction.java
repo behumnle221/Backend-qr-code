@@ -49,6 +49,9 @@ public class Transaction {
     // Montant net reçu par le vendeur (montant - commission)
     private BigDecimal montantNet;
 
+    // Message d'erreur ou d'information
+    private String message;
+
     @PrePersist
     protected void onCreate() {
         dateCreation = LocalDateTime.now();
@@ -91,4 +94,6 @@ public class Transaction {
     public void setDateExpiration(LocalDateTime dateExpiration) { this.dateExpiration = dateExpiration; }
     public void setCommissionAppliquee(BigDecimal commissionAppliquee) { this.commissionAppliquee = commissionAppliquee; }
     public void setMontantNet(BigDecimal montantNet) { this.montantNet = montantNet; }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 }

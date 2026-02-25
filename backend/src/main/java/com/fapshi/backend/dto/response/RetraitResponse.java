@@ -50,6 +50,10 @@ public class RetraitResponse {
     }
 
     public String getStatut() {
+        // Normaliser: SUCCESSFUL -> SUCCESS pour le frontend
+        if ("SUCCESSFUL".equalsIgnoreCase(statut)) {
+            return "SUCCESS";
+        }
         return statut;
     }
 
@@ -97,3 +101,4 @@ public class RetraitResponse {
         this.message = message;
     }
 }
+

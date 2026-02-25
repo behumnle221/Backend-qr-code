@@ -69,6 +69,10 @@ public class TransactionDTO {
     }
 
     public String getStatut() {
+        // Normaliser: SUCCESSFUL -> SUCCESS pour le frontend
+        if ("SUCCESSFUL".equalsIgnoreCase(statut)) {
+            return "SUCCESS";
+        }
         return statut;
     }
 
@@ -108,3 +112,4 @@ public class TransactionDTO {
         this.description = description;
     }
 }
+

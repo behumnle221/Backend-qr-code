@@ -78,6 +78,76 @@ public class PaymentService {
     private static final String URL_CHECK    = "https://api-production.aangaraa-pay.com/api/v1/aangaraa_check_status";
 
     /**
+     * Vérifie le statut du paiement directement auprès d'Aangaraa
+     */
+    public Map<String, Object> checkPaymentStatus(Long transactionId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction non trouvée"));
+        
+        if (transaction.getPayToken() == null) {
+            throw new RuntimeException("Aucun payToken pour cette transaction");
+        }
+        
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("app_key", APP_KEY);
+        payload.put("payToken", transaction.getPayToken());
+        
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            
+            ResponseEntity<Map> response = restTemplate.exchange(
+                URL_CHECK, HttpMethod.POST, entity, Map.class);
+            
+            Map<String, Object> responseBody = response.getBody();
+            log.info("📊 Réponse status check: {}", responseBody);
+            
+            if (responseBody != null && responseBody.get("status") != null) {
+                String status = responseBody.get("status").toString();
+                transaction.setStatut(status);
+                
+                if ("SUCCESSFUL".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status)) {
+                    handlePaymentSuccess(transaction);
+                }
+                
+                transactionRepository.save(transaction);
+            }
+            
+            return responseBody;
+        } catch (Exception e) {
+            log.error("❌ Erreur lors de la vérification du statut: {}", e.getMessage());
+            throw new RuntimeException("Erreur vérification statut: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Méthode utilitaire pour gérer le succès du paiement (extraite pour être réutilisable)
+     */
+    private void handlePaymentSuccess(Transaction transaction) {
+        try {
+            // Marquer le QR code comme utilisé
+            QRCode qrCode = transaction.getQrCode();
+            if (qrCode != null) {
+                qrCode.setEstUtilise(true);
+                qrCodeRepository.save(qrCode);
+                log.info("✅ QR Code {} marqué comme utilisé", qrCode.getId());
+            }
+            
+            // Créditer le vendeur
+            Vendeur vendeur = qrCode != null ? qrCode.getVendeur() : null;
+            if (vendeur != null) {
+                BigDecimal montantNet = transaction.getMontantNet() != null ? 
+                    transaction.getMontantNet() : transaction.getMontant();
+                vendeurService.augmenterSolde(vendeur.getId(), montantNet);
+                log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
+            }
+        } catch (Exception e) {
+            log.error("❌ Erreur lors du traitement du succès: {}", e.getMessage());
+        }
+    }
+
+    /**
      * Étape 1 : Initialisation du paiement (Mobile -> Backend)
      */
     @Transactional

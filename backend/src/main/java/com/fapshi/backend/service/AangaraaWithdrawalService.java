@@ -166,10 +166,16 @@ public class AangaraaWithdrawalService {
     public Map<String, Object> performWithdrawal(String phoneNumber, BigDecimal amount, 
                                                   String paymentMethod, String username) {
         try {
+            // Nettoyer le numéro: supprimer tous les caractères non numériques
             String cleanPhone = phoneNumber.replaceAll("[^0-9]", "");
-            if (!cleanPhone.startsWith("237")) {
-                cleanPhone = "237" + cleanPhone;
+            
+            // Supprimer le préfixe 237 s'il est présent (AangaraaPay attend le numéro sans préfixe pays)
+            if (cleanPhone.startsWith("237")) {
+                cleanPhone = cleanPhone.substring(3);
             }
+            
+            // AangaraaPay pour Orange Money Cameroon attend le numéro sans le préfixe 237
+            // Format attendu: 6XXXXXXXX (9 chiffres commençant par 6)
             
             Map<String, Object> body = new HashMap<>();
             body.put("app_key", appKey);

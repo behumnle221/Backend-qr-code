@@ -105,4 +105,40 @@ public class PaymentController {
             @RequestParam(required = false) String status) {
         return paymentSuccess(token, transaction_id, status);
     }
+    
+    /**
+     * Vérifie le statut du paiement directement auprès d'Aangaraa
+     */
+    @GetMapping("/status/{transactionId}")
+    public ResponseEntity<Map<String, Object>> checkPaymentStatus(@PathVariable Long transactionId) {
+        try {
+            Map<String, Object> status = paymentService.checkPaymentStatus(transactionId);
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        }
+    }
+    
+    /**
+     * Vérifie le statut local de la transaction (sans appeler Aangaraa)
+     */
+    @GetMapping("/status/local/{transactionId}")
+    public ResponseEntity<Map<String, Object>> getLocalStatus(@PathVariable Long transactionId) {
+        Optional<Transaction> optTrans = transactionRepository.findById(transactionId);
+        if (optTrans.isPresent()) {
+            Transaction t = optTrans.get();
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "transactionId", t.getId(),
+                "status", t.getStatut(),
+                "montant", t.getMontant(),
+                "payToken", t.getPayToken() != null ? t.getPayToken() : ""
+            ));
+        }
+        return ResponseEntity.notFound().build();
+    }
 }
+

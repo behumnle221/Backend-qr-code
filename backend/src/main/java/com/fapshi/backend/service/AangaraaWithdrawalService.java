@@ -182,7 +182,8 @@ public class AangaraaWithdrawalService {
             Map<String, Object> body = new HashMap<>();
             body.put("app_key", appKey);
             body.put("phone_number", cleanPhone);
-            body.put("amount", amount.toPlainString());
+            // Convertir le montant en entier pour éviter "Floating numbers not allowed"
+            body.put("amount", amount.intValue());
             body.put("payment_method", paymentMethod);
             body.put("username", username != null ? username : "");
             

@@ -359,16 +359,29 @@ public class VendeurController {
             String statut = "PENDING";
             if (Boolean.TRUE.equals(withdrawalResult.get("success"))) {
                 String status = (String) withdrawalResult.get("status");
-                if ("SUCCESSFUL".equals(status)) {
-                    statut = "SUCCESS";
-                    // Déduire du solde virtuel
-                    try {
-                        vendeurService.diminuerSolde(vendeur.getId(), request.getMontant());
-                    } catch (Exception e) {
-                        log.error("Erreur lors de la diminution du solde: {}", e.getMessage());
+                
+                // Log pour debug
+                log.info("🔍 Statut reçu d'Aangaraa: {}", status);
+                
+                // Vérifier plusieurs formats de statut possible
+                if (status != null && ("SUCCESSFUL".equalsIgnoreCase(status) 
+                    || "SUCCESS".equalsIgnoreCase(status) 
+                    || "PENDING".equalsIgnoreCase(status))) {
+                    
+                    if ("SUCCESSFUL".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status)) {
+                        statut = "SUCCESS";
+                        // Déduire du solde virtuel
+                        try {
+                            vendeurService.diminuerSolde(vendeur.getId(), request.getMontant());
+                        } catch (Exception e) {
+                            log.error("Erreur lors de la diminution du solde: {}", e.getMessage());
+                        }
                     }
-                } else if ("FAILED".equals(status)) {
+                } else if (status != null && ("FAILED".equalsIgnoreCase(status) || "ERROR".equalsIgnoreCase(status))) {
                     statut = "FAILED";
+                } else {
+                    // Si success=true mais status inconnu, considérer comme PENDING
+                    log.info("⚠️ Statut inconnu mais success=true,设置为PENDING: {}", status);
                 }
             }
             

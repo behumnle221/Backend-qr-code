@@ -258,15 +258,15 @@ public class VendeurService {
             throw new RuntimeException("Solde insuffisant. Solde: " + vendeur.getSoldeVirtuel() + " XAF, montant demandé: " + montant + " XAF");
         }
         
-        // 2. Vérifier l'écart 5h (depuis le dernier retrait SUCCESS ou PENDING)
+        // 2. Vérifier l'écart 5 minutes (depuis le dernier retrait SUCCESS ou PENDING)
         LocalDateTime maintenant = LocalDateTime.now();
-        LocalDateTime il5horesAgo = maintenant.minusHours(5);
+        LocalDateTime il5MinutesAgo = maintenant.minusMinutes(5);
         
-        List<Retrait> recentRetaits = retraitRepository.findRecentRetaits(vendeurId, il5horesAgo);
+        List<Retrait> recentRetaits = retraitRepository.findRecentRetaits(vendeurId, il5MinutesAgo);
         if (!recentRetaits.isEmpty()) {
             Retrait dernier = recentRetaits.get(0);
-            long heuresEcoulees = java.time.temporal.ChronoUnit.HOURS.between(dernier.getDateCreation(), maintenant);
-            throw new RuntimeException("Écart minimum de 5h requir entre les retraits. Dernier retrait: il y a " + heuresEcoulees + "h. Réessayez dans " + (5 - heuresEcoulees) + "h");
+            long minutesEcoulees = java.time.temporal.ChronoUnit.MINUTES.between(dernier.getDateCreation(), maintenant);
+            throw new RuntimeException("Écart minimum de 5min requis entre les retraits. Dernier retrait: il y a " + minutesEcoulees + "min. Réessayez dans " + (5 - minutesEcoulees) + "min");
         }
         
         // 3. Créer le retrait (état PENDING en attente de confirmation Aangaraa)

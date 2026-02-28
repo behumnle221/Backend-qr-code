@@ -312,18 +312,18 @@ public class VendeurController {
                             "Solde virtuel insuffisant. Solde: " + vendeur.getSoldeVirtuel() + " XAF, demandé: " + request.getMontant() + " XAF", null));
             }
             
-            // Vérifier l'écart 5h
-            long heuresEcoulees = 6; // Permettre si pas de retrait précédent
+            // Vérifier l'écart 5 minutes
+            long minutesEcoulees = 6; // Permettre si pas de retrait précédent
             var dernierRetraitOpt = vendeurService.getDernierRetrait(vendeur.getId());
             if (dernierRetraitOpt.isPresent()) {
                 RetraitResponse dernier = dernierRetraitOpt.get();
-                long heures = java.time.temporal.ChronoUnit.HOURS.between(dernier.getDateCreation(), LocalDateTime.now());
-                if (heures < 5 && ("PENDING".equals(dernier.getStatut()) || "SUCCESS".equals(dernier.getStatut()))) {
+                long minutes = java.time.temporal.ChronoUnit.MINUTES.between(dernier.getDateCreation(), LocalDateTime.now());
+                if (minutes < 5 && ("PENDING".equals(dernier.getStatut()) || "SUCCESS".equals(dernier.getStatut()))) {
                     return ResponseEntity.badRequest()
                             .body(new ApiResponse<RetraitResponse>(false, 
-                                "Écart minimum de 5h requis entre les retraits. Dernier retrait: il y a " + heures + "h", null));
+                                "Écart minimum de 5min requis entre les retraits. Dernier retrait: il y a " + minutes + "min", null));
                 }
-                heuresEcoulees = heures;
+                minutesEcoulees = minutes;
             }
             
             // Appeler l'API AangaraaPay pour effectuer le retrait

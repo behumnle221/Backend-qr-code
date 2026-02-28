@@ -1,5 +1,6 @@
 package com.fapshi.backend.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -21,6 +22,8 @@ public class ApiResponse<T> {
     private boolean success;
     private String message;
     private T data;
+    
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime timestamp = LocalDateTime.now();
 
     // Constructeur pour réponse réussie
@@ -28,11 +31,21 @@ public class ApiResponse<T> {
         this.success = true;
         this.message = message;
         this.data = data;
+        this.timestamp = LocalDateTime.now();
+    }
+
+    // Constructeur pour réponse avec succès/erreur explicite
+    public ApiResponse(boolean success, String message, T data) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+        this.timestamp = LocalDateTime.now();
     }
 
     // Constructeur pour erreur
     public ApiResponse(String message) {
         this.success = false;
         this.message = message;
+        this.timestamp = LocalDateTime.now();
     }
 }

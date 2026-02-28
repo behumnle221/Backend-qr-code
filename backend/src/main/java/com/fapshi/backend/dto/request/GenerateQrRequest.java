@@ -1,49 +1,29 @@
 package com.fapshi.backend.dto.request;
 
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
-/**
- * DTO pour la requête de génération de QR Code.
- */
 public class GenerateQrRequest {
 
-    @NotNull(message = "Le montant est obligatoire")
-    @Positive(message = "Le montant doit être positif")
-    private BigDecimal montant;
+    @NotEmpty(message = "Au moins un produit est requis")
+    private List<ProductItemRequest> products;
 
-    private String description; // Optionnel
+    private String description; // optionnel
 
     @NotNull(message = "Date d'expiration obligatoire")
     private LocalDateTime dateExpiration;
 
-    // ───────────────────────────────────────────────
-    // GETTERS ET SETTERS MANUELS (obligatoires si Lombok non actif)
-    // ───────────────────────────────────────────────
-    public BigDecimal getMontant() {
-        return montant;
-    }
+    // Getters & Setters
+    public List<ProductItemRequest> getProducts() { return products; }
+    public void setProducts(List<ProductItemRequest> products) { this.products = products; }
 
-    public void setMontant(BigDecimal montant) {
-        this.montant = montant;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public LocalDateTime getDateExpiration() {
-        return dateExpiration;
-    }
-
-    public void setDateExpiration(LocalDateTime dateExpiration) {
-        this.dateExpiration = dateExpiration;
-    }
+    public LocalDateTime getDateExpiration() { return dateExpiration; }
+    public void setDateExpiration(LocalDateTime dateExpiration) { this.dateExpiration = dateExpiration; }
 }

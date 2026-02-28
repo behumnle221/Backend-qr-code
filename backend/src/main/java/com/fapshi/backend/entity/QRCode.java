@@ -11,7 +11,7 @@ public class QRCode {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    private String qrPayload;   // ← NOUVEAU : le JSON complet qui sera scanné
     private String contenu;
 
     private String description;  // ← Champ ajouté ici
@@ -57,4 +57,10 @@ public class QRCode {
 
     public Vendeur getVendeur() { return vendeur; }
     public void setVendeur(Vendeur vendeur) { this.vendeur = vendeur; }
+
+    // jsonPayload est un champ calculé, pas besoin de setter
+    public String getQrPayload() { return qrPayload; }
+    public void setQrPayload(String qrPayload) { this.qrPayload = qrPayload; }
+
+
 }

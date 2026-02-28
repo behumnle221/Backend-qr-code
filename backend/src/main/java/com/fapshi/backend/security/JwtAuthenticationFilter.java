@@ -39,35 +39,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         
         System.out.println("=== JWT Filter EXECUTING ===");
-        System.out.println("URL: " + request.getRequestURI());
+        System.out.println("URL demandée : " + request.getRequestURI());
         
         String authHeader = request.getHeader("Authorization");
         
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             
+            System.out.println("Token reçu (début) : " + token.substring(0, Math.min(30, token.length())) + "...");
+            
             try {
                 if (jwtUtil.validateToken(token)) {
                     String username = jwtUtil.getUsernameFromToken(token);
-                    String role = jwtUtil.getRoleFromToken(token);  // ⬅️ NOUVEAU
+                    String role = jwtUtil.getRoleFromToken(token);
                     
-                    System.out.println("=== TOKEN INFO ===");
-                    System.out.println("Username: " + username);
-                    System.out.println("Role from token: " + role);
+                    System.out.println("=== INFOS DU TOKEN ===");
+                    System.out.println("Username extrait : " + username);
+                    System.out.println("Rôle brut extrait : '" + role + "'");
                     
                     if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                         
                         // Créer l'authority avec le préfixe ROLE_
                         List<SimpleGrantedAuthority> authorities = Collections.singletonList(
-                            new SimpleGrantedAuthority("ROLE_" + role)  // ⬅️ AJOUT DU PRÉFIXE
+                            new SimpleGrantedAuthority("ROLE_" + role)
                         );
                         
-                        System.out.println("Authorities créées: " + authorities);
+                        System.out.println("Authorities créées : " + authorities);
                         
-                        // Créer un UserDetails simple avec les authorities du token
+                        // Créer un UserDetails simple
                         UserDetails userDetails = User.builder()
                             .username(username)
-                            .password("")  // Pas besoin du mot de passe pour l'authentification JWT
+                            .password("")  
                             .authorities(authorities)
                             .build();
                         
@@ -75,20 +77,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             new UsernamePasswordAuthenticationToken(
                                 userDetails, 
                                 null, 
-                                authorities  // ⬅️ UTILISER LES AUTHORITIES DU TOKEN
+                                authorities
                             );
                         
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                         
-                        System.out.println("✅ Authentication configurée avec succès");
+                        System.out.println("✅ Authentification configurée avec succès");
+                        System.out.println("Utilisateur authentifié : " + authToken.getName());
+                        System.out.println("Authorities finales reconnues par Spring : " + authToken.getAuthorities());
                         System.out.println("==================");
                     }
+                } else {
+                    System.out.println("Token invalide ou expiré");
                 }
             } catch (Exception e) {
-                System.err.println("❌ JWT Error: " + e.getMessage());
+                System.err.println("❌ Erreur JWT : " + e.getMessage());
                 e.printStackTrace();
             }
+        } else {
+            System.out.println("Aucun header Authorization ou pas de Bearer");
         }
         
         filterChain.doFilter(request, response);

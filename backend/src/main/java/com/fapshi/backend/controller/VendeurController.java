@@ -394,6 +394,7 @@ public class VendeurController {
             retrait.setReferenceId(referenceId);
             retrait.setMessage(message);
             retrait.setDateCreation(LocalDateTime.now());
+            retrait.setTelephone(request.getTelephone());  // Sauvegarder le téléphone
             
             try {
                 retrait = retraitRepository.save(retrait);
@@ -410,7 +411,8 @@ public class VendeurController {
                     LocalDateTime.now(),
                     referenceId,
                     request.getOperateur(),
-                    message
+                    message,
+                    request.getTelephone()  // Inclure le téléphone dans la réponse
             );
             
             String messageReponse = Boolean.TRUE.equals(withdrawalResult.get("success")) ? 

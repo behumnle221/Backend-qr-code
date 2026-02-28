@@ -182,8 +182,10 @@ public class AangaraaWithdrawalService {
             Map<String, Object> body = new HashMap<>();
             body.put("app_key", appKey);
             body.put("phone_number", cleanPhone);
-            // Convertir le montant en entier pour éviter "Floating numbers not allowed"
-            body.put("amount", amount.intValue());
+            // Convertir en string sans décimales (ex: "10" au lieu de "10.00")
+            
+            body.put("amount", String.valueOf(amount.intValue()));
+
             body.put("payment_method", paymentMethod);
             body.put("username", username != null ? username : "");
             

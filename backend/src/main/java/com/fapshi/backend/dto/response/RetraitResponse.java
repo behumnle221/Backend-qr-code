@@ -16,6 +16,7 @@ public class RetraitResponse {
     private String referenceId;     // Réf Aangaraa
     private String operateur;       // Orange_Cameroon ou MTN_Cameroon
     private String message;         // Message d'erreur si FAILED
+    private String telephone;      // Numéro de téléphone du bénéficiaire
     
     // Constructeurs
     public RetraitResponse() {}
@@ -30,6 +31,20 @@ public class RetraitResponse {
         this.referenceId = referenceId;
         this.operateur = operateur;
         this.message = message;
+    }
+    
+    // Nouveau constructeur avec téléphone
+    public RetraitResponse(Long id, BigDecimal montant, String statut, LocalDateTime dateCreation, 
+                          LocalDateTime dateAttempt, String referenceId, String operateur, String message, String telephone) {
+        this.id = id;
+        this.montant = montant;
+        this.statut = statut;
+        this.dateCreation = dateCreation;
+        this.dateAttempt = dateAttempt;
+        this.referenceId = referenceId;
+        this.operateur = operateur;
+        this.message = message;
+        this.telephone = telephone;
     }
 
     // Getters et Setters
@@ -99,6 +114,14 @@ public class RetraitResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+    
+    public String getTelephone() {
+        return telephone;
+    }
+
+    public void setTelephone(String telephone) {
+        this.telephone = telephone;
     }
 }
 

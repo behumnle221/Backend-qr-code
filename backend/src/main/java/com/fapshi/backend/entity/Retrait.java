@@ -41,6 +41,9 @@ public class Retrait {
     @Column
     private String message;  // Message d'erreur si FAILED
     
+    @Column
+    private String telephone;  // Numéro de téléphone du bénéficiaire
+    
     @PrePersist
     protected void onCreate() {
         if (dateCreation == null) {
@@ -119,5 +122,13 @@ public class Retrait {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+    
+    public String getTelephone() {
+        return telephone;
+    }
+
+    public void setTelephone(String telephone) {
+        this.telephone = telephone;
     }
 }

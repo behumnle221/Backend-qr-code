@@ -305,7 +305,8 @@ public class VendeurService {
             retrait.getDateAttempt(),
             retrait.getReferenceId(),
             retrait.getOperateur(),
-            retrait.getMessage()
+            retrait.getMessage(),
+            retrait.getTelephone()
         ));
     }
 
@@ -322,7 +323,8 @@ public class VendeurService {
                 retrait.getDateAttempt(),
                 retrait.getReferenceId(),
                 retrait.getOperateur(),
-                retrait.getMessage()
+                retrait.getMessage(),
+                retrait.getTelephone()
             ));
     }
 

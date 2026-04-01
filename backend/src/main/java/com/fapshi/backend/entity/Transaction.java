@@ -1,5 +1,6 @@
 package com.fapshi.backend.entity;
 
+import com.fapshi.backend.enums.TypeTransaction;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -16,6 +17,11 @@ public class Transaction {
     
     @Column
     private String transactionId;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private TypeTransaction transactionType = TypeTransaction.PAYMENT_MARCHAND;
+
     @ManyToOne
     @JoinColumn(name = "client_id")
     private Client client;  
@@ -64,6 +70,7 @@ public class Transaction {
     // GETTERS MANUELS
     public Long getId() { return id; }
     public String getTransactionId() { return transactionId; }
+    public TypeTransaction getTransactionType() { return transactionType; }
     public QRCode getQrCode() { return qrCode; }
     public String getTelephoneClient() { return telephoneClient; }
     public BigDecimal getMontant() { return montant; }
@@ -81,6 +88,7 @@ public class Transaction {
     // SETTERS MANUELS
     public void setId(Long id) { this.id = id; }
     public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
+    public void setTransactionType(TypeTransaction transactionType) { this.transactionType = transactionType; }
     public void setQrCode(QRCode qrCode) { this.qrCode = qrCode; }
     public void setTelephoneClient(String telephoneClient) { this.telephoneClient = telephoneClient; }
     public void setMontant(BigDecimal montant) { this.montant = montant; }

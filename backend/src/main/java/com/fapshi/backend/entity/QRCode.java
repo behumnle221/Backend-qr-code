@@ -16,6 +16,8 @@ public class QRCode {
 
     private String description;  // ← Champ ajouté ici
 
+    private String usageType = "PAYMENT_MARCHAND";
+
     private BigDecimal montant;
 
     private LocalDateTime dateCreation = LocalDateTime.now();
@@ -54,6 +56,9 @@ public class QRCode {
 
     public String getHash() { return hash; }
     public void setHash(String hash) { this.hash = hash; }
+
+    public String getUsageType() { return usageType; }
+    public void setUsageType(String usageType) { this.usageType = usageType; }
 
     public Vendeur getVendeur() { return vendeur; }
     public void setVendeur(Vendeur vendeur) { this.vendeur = vendeur; }

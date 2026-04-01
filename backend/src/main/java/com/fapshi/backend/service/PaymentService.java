@@ -7,11 +7,13 @@ package com.fapshi.backend.service;
 import com.fapshi.backend.dto.external.AangaraaPaymentResponse;
 import com.fapshi.backend.dto.request.InitiatePaymentRequest;
 import com.fapshi.backend.dto.response.PaymentInitResponse;
+import com.fapshi.backend.entity.Client;
 import com.fapshi.backend.entity.ConfigurationFrais;
 import com.fapshi.backend.entity.QRCode;
 import com.fapshi.backend.entity.Transaction;
 import com.fapshi.backend.entity.Vendeur;
 import com.fapshi.backend.enums.StatutTransaction;
+import com.fapshi.backend.enums.TypeTransaction;
 import com.fapshi.backend.repository.ConfigurationFraisRepository;
 import com.fapshi.backend.repository.QRCodeRepository;
 import com.fapshi.backend.repository.TransactionRepository;
@@ -47,6 +49,8 @@ public class PaymentService {
     @Autowired private ConfigurationFraisRepository configurationFraisRepository;
     @Autowired private RetraitRepository retraitRepository;
     @Autowired private VendeurService vendeurService;
+    @Autowired private ClientService clientService;
+    @Autowired private AuditLogService auditLogService;
     @Autowired private RestTemplate restTemplate;
 
     @Value("${app.aangaraa.webhook-url:}")
@@ -89,6 +93,15 @@ public class PaymentService {
                 .orElseThrow(() -> new RuntimeException("Transaction non trouvée"));
         
         if (transaction.getPayToken() == null) {
+            if (transaction.getTransactionType() != null &&
+                (transaction.getTransactionType() == TypeTransaction.PAYMENT_MARCHAND ||
+                 transaction.getTransactionType() == TypeTransaction.TRANSFERT_VIRTUEL)) {
+                return Map.of(
+                    "status", transaction.getStatut(),
+                    "message", "Transaction interne",
+                    "transactionType", transaction.getTransactionType().name()
+                );
+            }
             throw new RuntimeException("Aucun payToken pour cette transaction");
         }
         
@@ -197,6 +210,45 @@ public class PaymentService {
         int random = (int) (Math.random() * 10000); // 4 chiffres aléatoires
         transaction.setTransactionId("TRANS_" + timestamp + "_" + random);
 
+        TypeTransaction requestedType = determineTransactionType(request, qrCode);
+
+        if (requestedType == TypeTransaction.PAYMENT_MARCHAND || requestedType == TypeTransaction.TRANSFERT_VIRTUEL) {
+            if (qrCode.getVendeur() == null) {
+                throw new RuntimeException("Le QR Code n'est associé à aucun commerçant.");
+            }
+            if (request.getTelephoneClient() == null || request.getTelephoneClient().isBlank()) {
+                throw new RuntimeException("Le numéro du client est requis pour un paiement marchand interne.");
+            }
+
+            Client client = clientService.findByTelephone(request.getTelephoneClient())
+                    .orElseThrow(() -> new RuntimeException("Client introuvable pour le numéro : " + request.getTelephoneClient()));
+
+            calculateCommissionAndNetAmount(transaction);
+            clientService.debiterSolde(client.getId(), transaction.getMontant());
+
+            Vendeur vendeur = qrCode.getVendeur();
+            BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : transaction.getMontant();
+            vendeurService.augmenterSolde(vendeur.getId(), montantNet);
+
+            qrCode.setEstUtilise(true);
+            qrCodeRepository.save(qrCode);
+
+            transaction.setClient(client);
+            transaction.setTransactionType(TypeTransaction.TRANSFERT_VIRTUEL);
+            transaction.setStatut("SUCCESS");
+            transactionRepository.save(transaction);
+
+            auditLogService.log(client.getId(), client.getTelephone(), "PAYMENT_MARCHAND", 
+                    "Paiement QR interne vers vendeur " + vendeur.getId() + " montant " + transaction.getMontant(), transaction);
+
+            PaymentInitResponse response = new PaymentInitResponse();
+            response.setSuccess(true);
+            response.setMessage("Paiement marchand interne effectué avec succès.");
+            response.setTransactionId(transaction.getId());
+            return response;
+        }
+
+        transaction.setTransactionType(requestedType);
         calculateCommissionAndNetAmount(transaction);
         transaction = transactionRepository.save(transaction);
         log.info("✅ Transaction créée: ID={}, transactionId={}", transaction.getId(), transaction.getTransactionId());
@@ -341,6 +393,30 @@ public class PaymentService {
         } catch (Exception e) {
             log.error("Erreur mise à jour solde: {}", e.getMessage());
         }
+    }
+
+    private TypeTransaction determineTransactionType(InitiatePaymentRequest request, QRCode qrCode) {
+        if (request.getTransactionType() != null && !request.getTransactionType().isBlank()) {
+            try {
+                return TypeTransaction.valueOf(request.getTransactionType().trim().toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                log.warn("Type de transaction non reconnu: {}. Utilisation du type par défaut.", request.getTransactionType());
+            }
+        }
+
+        if (qrCode != null && qrCode.getUsageType() != null) {
+            try {
+                return TypeTransaction.valueOf(qrCode.getUsageType().trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("UsageType QR code non reconnu: {}. Utilisation du type par défaut.", qrCode.getUsageType());
+            }
+        }
+
+        if (qrCode != null && qrCode.getVendeur() != null) {
+            return TypeTransaction.PAYMENT_MARCHAND;
+        }
+
+        return TypeTransaction.RECHARGEMENT;
     }
 
     /**

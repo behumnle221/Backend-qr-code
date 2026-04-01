@@ -10,6 +10,7 @@ public class InitiatePaymentRequest {
     private String operator;            // "Orange_Cameroon" ou "MTN_Cameroon"
     private BigDecimal montant;
     private boolean directPayment = true; // true = paiement direct PIN, false = redirection
+    private String transactionType;
 
     // GETTERS
     public Long getQrCodeId() { return qrCodeId; }
@@ -17,6 +18,7 @@ public class InitiatePaymentRequest {
     public String getOperator() { return operator; }
     public BigDecimal getMontant() { return montant; }
     public boolean isDirectPayment() { return directPayment; }
+    public String getTransactionType() { return transactionType; }
 
     // SETTERS
     public void setQrCodeId(Long qrCodeId) { this.qrCodeId = qrCodeId; }
@@ -24,5 +26,6 @@ public class InitiatePaymentRequest {
     public void setOperator(String operator) { this.operator = operator; }
     public void setMontant(BigDecimal montant) { this.montant = montant; }
     public void setDirectPayment(boolean directPayment) { this.directPayment = directPayment; }
+    public void setTransactionType(String transactionType) { this.transactionType = transactionType; }
 }
 

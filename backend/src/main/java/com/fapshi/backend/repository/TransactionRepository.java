@@ -15,6 +15,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByQrCodeVendeurId(Long vendeurId);
     List<Transaction> findByClientId(Long clientId);
     List<Transaction> findByStatut(String statut);
+    List<Transaction> findByTransactionType(String transactionType);
+    List<Transaction> findByStatutAndTransactionType(String statut, String transactionType);
     
     // Query pour récupérer les transactions d'un vendeur avec pagination et filtres
     @Query("SELECT t FROM Transaction t " +

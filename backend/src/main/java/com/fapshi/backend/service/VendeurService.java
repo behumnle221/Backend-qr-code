@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -106,15 +107,12 @@ public class VendeurService {
      * @param vendeurId ID du vendeur
      * @param montantNet Montant net à ajouter (après commission)
      */
+    @Transactional
     public void augmenterSolde(Long vendeurId, BigDecimal montantNet) {
-        Vendeur vendeur = vendeurRepository.findById(vendeurId)
-                .orElseThrow(() -> new RuntimeException("Vendeur non trouvé : " + vendeurId));
-        
-        BigDecimal nouveauSolde = vendeur.getSoldeVirtuel().add(montantNet);
-        vendeur.setSoldeVirtuel(nouveauSolde);
-        vendeur.setDerniereMiseAJourSolde(LocalDateTime.now());
-        
-        vendeurRepository.save(vendeur);
+        int updated = vendeurRepository.crediterVendeur(vendeurId, montantNet);
+        if (updated == 0) {
+            throw new RuntimeException("Vendeur non trouvé ou mise à jour échouée : " + vendeurId);
+        }
     }
 
     /**

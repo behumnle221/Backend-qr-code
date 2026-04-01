@@ -4,7 +4,9 @@ import com.fapshi.backend.entity.Client;
 import com.fapshi.backend.repository.ClientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +40,25 @@ public class ClientService {
 
     public Optional<Client> findById(Long id) {
         return clientRepository.findById(id);
+    }
+
+    public Optional<Client> findByTelephone(String telephone) {
+        return clientRepository.findByTelephone(telephone);
+    }
+
+    @Transactional
+    public void debiterSolde(Long clientId, BigDecimal montant) {
+        int affected = clientRepository.debiterSiSuffisant(clientId, montant);
+        if (affected == 0) {
+            throw new RuntimeException("Solde insuffisant ou client introuvable");
+        }
+    }
+
+    public BigDecimal getSoldeVirtuel(Long clientId) {
+        return clientRepository.findById(clientId)
+                .map(client -> client.getSoldeVirtuel())
+                
+                .orElse(BigDecimal.ZERO);
     }
 
     public List<Client> findAll() {

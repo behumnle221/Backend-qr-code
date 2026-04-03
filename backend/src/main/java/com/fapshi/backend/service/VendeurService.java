@@ -68,7 +68,9 @@ public class VendeurService {
      */
     public BigDecimal calculerSoldeVirtuel(Long vendeurId) {
         // 1. Sommer toutes les transactions SUCCESS du vendeur via ses QR codes
-        List<Transaction> transactions = transactionRepository.findByQrCodeVendeurId(vendeurId);
+        // Utilisation de la requête JPQL qui fonctionne correctement
+        List<Transaction> transactions = transactionRepository.findTransactionsByVendeur(
+            vendeurId, "SUCCESS", null, null, Pageable.unpaged()).getContent();
         BigDecimal soldeTransactions = BigDecimal.ZERO;
 
         for (Transaction tx : transactions) {

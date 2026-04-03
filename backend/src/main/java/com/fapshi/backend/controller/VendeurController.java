@@ -647,18 +647,27 @@ public class VendeurController {
                         String newStatus = (String) statusResult.get("status");
                         String message = (String) statusResult.get("message");
                         
-                        if (newStatus != null && !newStatus.equals(retrait.getStatut())) {
-                            retrait.setStatut(newStatus);
-                            retrait.setMessage(message);
-                            retrait.setDateAttempt(LocalDateTime.now());
-                            retraitRepository.save(retrait);
-                            updatedCount++;
-                            
-                            if ("SUCCESS".equalsIgnoreCase(newStatus) || "SUCCESSFUL".equalsIgnoreCase(newStatus)) {
-                                successCount++;
+                        if (newStatus != null) {
+                            String normalizedStatus = "SUCCESS";
+                            if ("SUCCESSFUL".equalsIgnoreCase(newStatus)) {
+                                normalizedStatus = "SUCCESS";
+                            } else {
+                                normalizedStatus = newStatus;
                             }
-                            
-                            log.info("✅ Retrait {} sync vers {}", retrait.getId(), newStatus);
+
+                            if (!normalizedStatus.equalsIgnoreCase(retrait.getStatut())) {
+                                retrait.setStatut(normalizedStatus);
+                                retrait.setMessage(message);
+                                retrait.setDateAttempt(LocalDateTime.now());
+                                retraitRepository.save(retrait);
+                                updatedCount++;
+
+                                if ("SUCCESS".equalsIgnoreCase(normalizedStatus)) {
+                                    successCount++;
+                                }
+
+                                log.info("✅ Retrait {} sync vers {}", retrait.getId(), normalizedStatus);
+                            }
                         }
                     }
                 } catch (Exception e) {

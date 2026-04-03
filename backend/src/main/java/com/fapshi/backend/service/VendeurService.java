@@ -90,12 +90,14 @@ public class VendeurService {
         BigDecimal totalRetraits = BigDecimal.ZERO;
 
         for (Retrait retrait : retraits) {
-            if ("SUCCESS".equals(retrait.getStatut()) && retrait.getMontant() != null) {
+            if (retrait.getStatut() != null &&
+                    ("SUCCESS".equalsIgnoreCase(retrait.getStatut()) || "SUCCESSFUL".equalsIgnoreCase(retrait.getStatut()))
+                    && retrait.getMontant() != null) {
                 totalRetraits = totalRetraits.add(retrait.getMontant());
             }
         }
 
-        // 3. Solde réel = transactions SUCCESS - retraits SUCCESS
+        // 3. Solde réel = transactions SUCCESS/SUCCESSFUL - retraits SUCCESS/SUCCESSFUL
         BigDecimal soldeReel = soldeTransactions.subtract(totalRetraits);
 
         // Log pour debug

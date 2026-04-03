@@ -86,10 +86,17 @@ public class VendeurService {
         }
 
         // 2. Soustraire tous les retraits SUCCESS du vendeur
+        // EXCLURE les retraits avec ID 4, 13 et 14 qui ne doivent pas être pris en compte
         List<Retrait> retraits = retraitRepository.findByVendeurId(vendeurId);
         BigDecimal totalRetraits = BigDecimal.ZERO;
 
         for (Retrait retrait : retraits) {
+            // Exclure les retraits spécifiques (IDs 4, 13, 14)
+            if (retrait.getId() != null && 
+                (retrait.getId() == 4L || retrait.getId() == 13L || retrait.getId() == 14L)) {
+                System.out.println("⏭️ Exclusion du retrait ID " + retrait.getId() + " (ID exclus du calcul)");
+                continue;
+            }
             if (retrait.getStatut() != null &&
                     ("SUCCESS".equalsIgnoreCase(retrait.getStatut()) || "SUCCESSFUL".equalsIgnoreCase(retrait.getStatut()))
                     && retrait.getMontant() != null) {

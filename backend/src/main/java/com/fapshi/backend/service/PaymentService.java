@@ -136,7 +136,13 @@ public class PaymentService {
         payload.put("return_url", returnUrl);
         
         // Ajouter les infos téléphone
-        String phone = client.getTelephone().trim().replaceAll("[^0-9]", "");
+        // Utiliser le téléphone de la requête si fourni, sinon celui du client
+        String phone;
+        if (request.getTelephone() != null && !request.getTelephone().isBlank()) {
+            phone = request.getTelephone().trim().replaceAll("[^0-9]", "");
+        } else {
+            phone = client.getTelephone().trim().replaceAll("[^0-9]", "");
+        }
         if (!phone.startsWith("237")) phone = "237" + phone;
         payload.put("phone_number", phone);
         payload.put("operator", request.getOperator());

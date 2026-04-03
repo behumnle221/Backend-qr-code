@@ -1,16 +1,23 @@
 package com.fapshi.backend.controller;
 
+import com.fapshi.backend.dto.request.RechargementRequest;
+import com.fapshi.backend.dto.response.PaymentInitResponse;
 import com.fapshi.backend.dto.response.TransactionDTO;
 import com.fapshi.backend.dto.response.TransactionListResponse;
 import com.fapshi.backend.service.ClientService;
+import com.fapshi.backend.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.core.Authentication;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -19,6 +26,9 @@ public class ClientController {
 
     @Autowired
     private ClientService clientService;
+    
+    @Autowired
+    private PaymentService paymentService;
 
     @GetMapping("/transactions")
     public ResponseEntity<TransactionListResponse> getTransactions(
@@ -45,5 +55,32 @@ public class ClientController {
         response.setHasPreviousPage(page > 0);
 
         return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Endpoint pour recharger le compte virtuel du client via Aangaraa
+     */
+    @PostMapping("/recharger")
+    public ResponseEntity<PaymentInitResponse> rechargerCompte(
+            Authentication authentication,
+            @RequestBody RechargementRequest request) {
+        
+        // Récupérer l'ID du client depuis le token JWT
+        Long clientId = (Long) authentication.getCredentials();
+        
+        // Initier le rechargement via Aangaraa
+        PaymentInitResponse response = paymentService.initierRechargement(clientId, request);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Endpoint pour consulter le solde virtuel du client
+     */
+    @GetMapping("/solde")
+    public ResponseEntity<BigDecimal> getSolde(Authentication authentication) {
+        Long clientId = (Long) authentication.getCredentials();
+        BigDecimal solde = clientService.getSoldeVirtuel(clientId);
+        return ResponseEntity.ok(solde);
     }
 }

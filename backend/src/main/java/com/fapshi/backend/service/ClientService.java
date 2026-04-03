@@ -2,6 +2,8 @@ package com.fapshi.backend.service;
 
 import com.fapshi.backend.entity.Client;
 import com.fapshi.backend.repository.ClientRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ClientService {
+
+    private static final Logger log = LoggerFactory.getLogger(ClientService.class);
 
     @Autowired
     private ClientRepository clientRepository;
@@ -59,6 +63,25 @@ public class ClientService {
                 .map(client -> client.getSoldeVirtuel())
                 
                 .orElse(BigDecimal.ZERO);
+    }
+
+    /**
+     * Crédite le compte virtuel du client (pour les rechargements via Aangaraa)
+     */
+    @Transactional
+    public void crediterSolde(Long clientId, BigDecimal montant) {
+        if (montant == null || montant.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Le montant doit être positif");
+        }
+        
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Client introuvable"));
+        
+        client.setSoldeVirtuel(client.getSoldeVirtuel().add(montant));
+        client.setDerniereMiseAJourSolde(java.time.LocalDateTime.now());
+        clientRepository.save(client);
+        
+        log.info("💰 Compte virtuel du client {} crédité de {} XAF", clientId, montant);
     }
 
     public List<Client> findAll() {

@@ -394,3 +394,4 @@ public class VendeurService {
         return retraitRepository.save(retrait);
     }
 }
+

@@ -6,6 +6,7 @@ package com.fapshi.backend.service;
 
 import com.fapshi.backend.dto.external.AangaraaPaymentResponse;
 import com.fapshi.backend.dto.request.InitiatePaymentRequest;
+import com.fapshi.backend.dto.request.RechargementRequest;
 import com.fapshi.backend.dto.response.PaymentInitResponse;
 import com.fapshi.backend.entity.Client;
 import com.fapshi.backend.entity.ConfigurationFrais;
@@ -84,6 +85,114 @@ public class PaymentService {
     private static final String URL_DIRECT   = "https://api-production.aangaraa-pay.com/api/v1/no_redirect/payment";
     private static final String URL_REDIRECT = "https://api-production.aangaraa-pay.com/api/v1/redirect/payment";
     private static final String URL_CHECK    = "https://api-production.aangaraa-pay.com/api/v1/aangaraa_check_status";
+
+    /**
+     * Initie un rechargement du compte virtuel du client via Aangaraa
+     * Le client fournit son montant et son opérateur, puis valide sur son téléphone
+     */
+    @Transactional
+    public PaymentInitResponse initierRechargement(Long clientId, RechargementRequest request) {
+        // Validation
+        if (request.getMontant() == null || request.getMontant().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Le montant doit être positif");
+        }
+        if (request.getOperator() == null || request.getOperator().isBlank()) {
+            throw new RuntimeException("L'opérateur est requis");
+        }
+        
+        // Récupérer le client
+        Client client = clientService.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Client introuvable"));
+        
+        // Créer une transaction de type RECHARGEMENT
+        Transaction transaction = new Transaction();
+        transaction.setClient(client);
+        transaction.setMontant(request.getMontant());
+        transaction.setOperator(request.getOperator());
+        transaction.setTransactionType(TypeTransaction.RECHARGEMENT);
+        transaction.setStatut("PENDING");
+        transaction.setTelephoneClient(client.getTelephone());
+        transaction.setDateCreation(LocalDateTime.now());
+        
+        // Générer le transactionId
+        long timestamp = System.currentTimeMillis();
+        int random = (int) (Math.random() * 10000);
+        transaction.setTransactionId("RECH_" + timestamp + "_" + random);
+        
+        transaction = transactionRepository.save(transaction);
+        log.info("✅ Transaction de rechargement créée: ID={}, montant={}", transaction.getId(), request.getMontant());
+        
+        // Préparer le payload pour Aangaraa
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("amount", request.getMontant().toString());
+        payload.put("description", "Rechargement compte virtuel");
+        payload.put("app_key", APP_KEY);
+        payload.put("transaction_id", transaction.getId().toString());
+        
+        String notifyUrl = getWebhookUrl();
+        payload.put("notify_url", notifyUrl);
+        
+        String returnUrl = "https://backend-qr-code-u2kx.onrender.com/api/payments/success";
+        payload.put("return_url", returnUrl);
+        
+        // Ajouter les infos téléphone
+        String phone = client.getTelephone().trim().replaceAll("[^0-9]", "");
+        if (!phone.startsWith("237")) phone = "237" + phone;
+        payload.put("phone_number", phone);
+        payload.put("operator", request.getOperator());
+        payload.put("devise_id", "XAF");
+        
+        // Appel à Aangaraa
+        String url = request.isDirectPayment() ? URL_DIRECT : URL_REDIRECT;
+        
+        try {
+            log.info("📤 Appel Aangaraa pour rechargement: {}", url);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+            
+            ResponseEntity<AangaraaPaymentResponse> responseEntity = restTemplate.exchange(
+                url, HttpMethod.POST, entity, AangaraaPaymentResponse.class);
+            
+            AangaraaPaymentResponse apiResponse = responseEntity.getBody();
+            
+            if (apiResponse == null) {
+                throw new RuntimeException("Réponse vide de l'API Aangaraa");
+            }
+            
+            Integer statusCode = apiResponse.getStatusCode();
+            if (statusCode == null || (statusCode != 200 && statusCode != 201)) {
+                throw new RuntimeException("Erreur Aangaraa: " + apiResponse.getMessage());
+            }
+            
+            if (apiResponse.getData() == null) {
+                throw new RuntimeException("Données vides dans la réponse Aangaraa");
+            }
+            
+            // Sauvegarder le payToken
+            AangaraaPaymentResponse.Data data = apiResponse.getData();
+            transaction.setPayToken(data.getPayToken());
+            transaction.setPayUrl(data.getPayment_url());
+            transaction.setReferenceOperateur(data.getTransaction_id());
+            transactionRepository.save(transaction);
+            
+            log.info("✅ Rechargement initié, payToken: {}", data.getPayToken());
+            
+            PaymentInitResponse response = new PaymentInitResponse();
+            response.setSuccess(true);
+            response.setMessage("Rechargement initié. Validez sur votre téléphone.");
+            response.setTransactionId(transaction.getId());
+            response.setPayToken(transaction.getPayToken());
+            if (!request.isDirectPayment()) response.setPayUrl(transaction.getPayUrl());
+            
+            return response;
+            
+        } catch (Exception e) {
+            log.error("❌ Erreur lors du rechargement: {}", e.getMessage());
+            throw new RuntimeException("Erreur lors du rechargement: " + e.getMessage());
+        }
+    }
 
     /**
      * Vérifie le statut du paiement directement auprès d'Aangaraa
@@ -339,24 +448,40 @@ public class PaymentService {
         if ("SUCCESSFUL".equalsIgnoreCase(statusFromApi)) {
             transaction.setStatut("SUCCESSFUL");
             
-            // Marquer le QR code comme utilisé
-            QRCode qrCode = transaction.getQrCode();
-            if (qrCode != null) {
-                qrCode.setEstUtilise(true);
-                qrCodeRepository.save(qrCode);
-            }
+            // Vérifier le type de transaction pour savoir où créditer
+            TypeTransaction type = transaction.getTransactionType();
             
-            // Créditer le vendeur
-            try {
-                Vendeur vendeur = transaction.getQrCode().getVendeur();
-                if (vendeur != null) {
-                    BigDecimal montantNet = transaction.getMontantNet() != null ? 
-                        transaction.getMontantNet() : transaction.getMontant();
-                    vendeurService.augmenterSolde(vendeur.getId(), montantNet);
-                    log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
+            if (type == TypeTransaction.RECHARGEMENT) {
+                // Pour les rechargements : créditer le client
+                try {
+                    Client client = transaction.getClient();
+                    if (client != null) {
+                        BigDecimal montant = transaction.getMontant();
+                        clientService.crediterSolde(client.getId(), montant);
+                        log.info("💰 Client {} crédité de {} XAF pour rechargement", client.getId(), montant);
+                    }
+                } catch (Exception e) {
+                    log.error("❌ Erreur lors du crédit du client pour rechargement: {}", e.getMessage());
                 }
-            } catch (Exception e) {
-                log.error("❌ Erreur lors du crédit du vendeur: {}", e.getMessage());
+            } else {
+                // Pour les autres types (PAYMENT_MARCHAND, etc.) : marquer le QR code comme utilisé et créditer le vendeur
+                QRCode qrCode = transaction.getQrCode();
+                if (qrCode != null) {
+                    qrCode.setEstUtilise(true);
+                    qrCodeRepository.save(qrCode);
+                }
+                
+                try {
+                    Vendeur vendeur = transaction.getQrCode() != null ? transaction.getQrCode().getVendeur() : null;
+                    if (vendeur != null) {
+                        BigDecimal montantNet = transaction.getMontantNet() != null ? 
+                            transaction.getMontantNet() : transaction.getMontant();
+                        vendeurService.augmenterSolde(vendeur.getId(), montantNet);
+                        log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
+                    }
+                } catch (Exception e) {
+                    log.error("❌ Erreur lors du crédit du vendeur: {}", e.getMessage());
+                }
             }
         } else if ("FAILED".equalsIgnoreCase(statusFromApi)) {
             transaction.setStatut("FAILED");

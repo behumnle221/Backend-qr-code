@@ -236,12 +236,20 @@ public class AangaraaWithdrawalService {
                         refId = (String) txData.get("referenceId");
                     }
                     if (refId == null) {
-                        refId = (String) txData.get("referenceId");
+                        refId = (String) txData.get("withdrawal_id");
                     }
                     
                     String txId = (String) txData.get("transaction_id");
                     if (txId == null) {
                         txId = (String) txData.get("transactionId");
+                    }
+                    if (txId == null) {
+                        txId = (String) txData.get("withdrawal_id");
+                    }
+                    
+                    // Mettre en priorité le reference_id pour le referenceId
+                    if (refId == null && txId != null) {
+                        refId = txId;
                     }
                     
                     result.put("referenceId", refId);
@@ -256,8 +264,16 @@ public class AangaraaWithdrawalService {
                         result.put("status", txData.get("status"));
                     }
                     
-                    log.info("📥 Retrait - Status: {}, Reference: {}, TransactionId: {}", 
+                    log.info("✅ Retrait traité - Status: {}, Reference: {}, TransactionId: {}", 
                              status, refId, txId);
+                } else {
+                    log.warn("⚠️ Structure de réponse inattendus - 'data' manquant");
+                    // Essayer de récupérer depuis la racine
+                    Object refIdObj = data.get("reference_id");
+                    if (refIdObj != null) {
+                        result.put("referenceId", refIdObj.toString());
+                        log.info("✅ Reference récupéré depuis racine: {}", refIdObj);
+                    }
                 }
                 
                 return result;

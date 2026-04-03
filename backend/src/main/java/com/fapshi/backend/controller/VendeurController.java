@@ -602,6 +602,94 @@ public class VendeurController {
     }
     
     /**
+     * Endpoint pour synchroniser les retraits LEGACY (anciens sans reference_id mais avec "Payment request successful")
+     * Endpoint : POST /api/vendeur/retraits/sync-legacy
+     * Authentification : JWT + rôle VENDEUR
+     * 
+     * Cette fonction rattrape les retraits créés avant les récentes modifications
+     * qui n'ont pas le reference_id sauvegardé mais qui ont réussi côté Aangaraa
+     */
+    @PostMapping("/retraits/sync-legacy")
+    @PreAuthorize("hasAuthority('ROLE_VENDEUR')")
+    public ResponseEntity<ApiResponse<Object>> syncLegacyRetraits() {
+        try {
+            // Récupérer le vendeur connecté
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            
+            Vendeur vendeur = vendeurService.findByEmail(username)
+                    .or(() -> vendeurService.findByTelephone(username))
+                    .orElseThrow(() -> new RuntimeException("Vendeur non trouvé"));
+            
+            // Récupérer tous les retraits PENDING sans reference_id
+            List<Retrait> retraitsLegacy = retraitRepository.findByVendeurId(vendeur.getId())
+                .stream()
+                .filter(r -> "PENDING".equals(r.getStatut()))
+                .filter(r -> (r.getReferenceId() == null || r.getReferenceId().isBlank()))
+                .toList();
+            
+            log.info("📅 Sync legacy retraits - {} retraits PENDING sans reference_id pour vendeur {}", 
+                     retraitsLegacy.size(), vendeur.getId());
+            
+            int successCount = 0;
+            int migratedCount = 0;
+            BigDecimal totalSubtracted = BigDecimal.ZERO;
+            
+            for (Retrait retrait : retraitsLegacy) {
+                try {
+                    // Si le message indique "Payment request successful", le marquer comme SUCCESS
+                    if (retrait.getMessage() != null && retrait.getMessage().contains("Payment request successful")) {
+                        log.info("✅ Migrer retrait {} de PENDING vers SUCCESS (message: Payment request successful)", 
+                                 retrait.getId());
+                        
+                        retrait.setStatut("SUCCESS");
+                        retrait.setMessage("SUCCESS - Migré automatiquement de PENDING (avait réussi côté Aangaraa)");
+                        retrait.setDateAttempt(LocalDateTime.now());
+                        retraitRepository.save(retrait);
+                        
+                        // Soustraire du solde du vendeur si pas encore soustrait
+                        try {
+                            vendeurService.diminuerSolde(vendeur.getId(), retrait.getMontant());
+                            totalSubtracted = totalSubtracted.add(retrait.getMontant());
+                            successCount++;
+                        } catch (Exception e) {
+                            log.warn("⚠️ Solde déjà soustrait pour retrait {}: {}", retrait.getId(), e.getMessage());
+                        }
+                        migratedCount++;
+                    }
+                    // Si le message contient une erreur, marquer comme FAILED
+                    else if (retrait.getMessage() != null && (
+                             retrait.getMessage().contains("Erreur:") ||
+                             retrait.getMessage().contains("Error") ||
+                             retrait.getMessage().contains("I/O error"))) {
+                        
+                        log.warn("❌ Marquer retrait {} comme FAILED (erreur détectée dans le message)", retrait.getId());
+                        retrait.setStatut("FAILED");
+                        retraitRepository.save(retrait);
+                        migratedCount++;
+                    }
+                } catch (Exception e) {
+                    log.error("❌ Erreur migration retrait {}: {}", retrait.getId(), e.getMessage());
+                }
+            }
+            
+            Map<String, Object> result = Map.of(
+                "total", retraitsLegacy.size(),
+                "migrated", migratedCount,
+                "success", successCount,
+                "totalSubtracted", totalSubtracted
+            );
+            
+            return ResponseEntity.ok(new ApiResponse<>(result, "Sync legacy terminé"));
+            
+        } catch (Exception e) {
+            log.error("Erreur sync legacy: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Erreur: " + e.getMessage(), null));
+        }
+    }
+
+    /**
      * Endpoint pour synchroniser tous les retraits PENDING du vendeur
      * Endpoint : POST /api/vendeur/retraits/sync
      * Authentification : JWT + rôle VENDEUR

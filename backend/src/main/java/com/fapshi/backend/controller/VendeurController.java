@@ -633,7 +633,6 @@ public class VendeurController {
             
             int successCount = 0;
             int migratedCount = 0;
-            BigDecimal totalSubtracted = BigDecimal.ZERO;
             
             for (Retrait retrait : retraitsLegacy) {
                 try {
@@ -647,14 +646,8 @@ public class VendeurController {
                         retrait.setDateAttempt(LocalDateTime.now());
                         retraitRepository.save(retrait);
                         
-                        // Soustraire du solde du vendeur si pas encore soustrait
-                        try {
-                            vendeurService.diminuerSolde(vendeur.getId(), retrait.getMontant());
-                            totalSubtracted = totalSubtracted.add(retrait.getMontant());
-                            successCount++;
-                        } catch (Exception e) {
-                            log.warn("⚠️ Solde déjà soustrait pour retrait {}: {}", retrait.getId(), e.getMessage());
-                        }
+                        // NOTE: Ne pas soustraire du solde (option A - laisser solde inchangé)
+                        successCount++;
                         migratedCount++;
                     }
                     // Si le message contient une erreur, marquer comme FAILED
@@ -676,8 +669,7 @@ public class VendeurController {
             Map<String, Object> result = Map.of(
                 "total", retraitsLegacy.size(),
                 "migrated", migratedCount,
-                "success", successCount,
-                "totalSubtracted", totalSubtracted
+                "success", successCount
             );
             
             return ResponseEntity.ok(new ApiResponse<>(result, "Sync legacy terminé"));

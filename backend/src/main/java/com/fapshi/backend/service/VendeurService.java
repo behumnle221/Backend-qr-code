@@ -61,25 +61,42 @@ public class VendeurService {
     }
 
     /**
-     * Calcule le solde virtuel du vendeur (somme des montants nets des transactions SUCCESS)
-     * 
+     * Calcule le solde virtuel réel : (transactions SUCCESS) - (retraits SUCCESS)
+     *
      * @param vendeurId ID du vendeur
-     * @return BigDecimal solde virtuel
+     * @return BigDecimal solde virtuel réel
      */
     public BigDecimal calculerSoldeVirtuel(Long vendeurId) {
-        // Récupérer toutes les transactions SUCCESS du vendeur via ses QR codes
+        // 1. Sommer toutes les transactions SUCCESS du vendeur via ses QR codes
         List<Transaction> transactions = transactionRepository.findByQrCodeVendeurId(vendeurId);
-        
-        BigDecimal soldeTotal = BigDecimal.ZERO;
-        
-        // Sommer uniquement les montantNet des transactions SUCCESS
+        BigDecimal soldeTransactions = BigDecimal.ZERO;
+
         for (Transaction tx : transactions) {
             if ("SUCCESS".equals(tx.getStatut()) && tx.getMontantNet() != null) {
-                soldeTotal = soldeTotal.add(tx.getMontantNet());
+                soldeTransactions = soldeTransactions.add(tx.getMontantNet());
             }
         }
-        
-        return soldeTotal;
+
+        // 2. Soustraire tous les retraits SUCCESS du vendeur
+        List<Retrait> retraits = retraitRepository.findByVendeurId(vendeurId);
+        BigDecimal totalRetraits = BigDecimal.ZERO;
+
+        for (Retrait retrait : retraits) {
+            if ("SUCCESS".equals(retrait.getStatut()) && retrait.getMontant() != null) {
+                totalRetraits = totalRetraits.add(retrait.getMontant());
+            }
+        }
+
+        // 3. Solde réel = transactions SUCCESS - retraits SUCCESS
+        BigDecimal soldeReel = soldeTransactions.subtract(totalRetraits);
+
+        // Log pour debug
+        System.out.println("🔄 Recalcul solde vendeur " + vendeurId +
+                          ": Transactions=" + soldeTransactions +
+                          " XAF, Retraits=" + totalRetraits +
+                          " XAF, Solde réel=" + soldeReel + " XAF");
+
+        return soldeReel;
     }
 
     /**

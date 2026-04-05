@@ -27,7 +27,7 @@ public class Transaction {
     private Client client;  
 
     @ManyToOne
-    @JoinColumn(name = "qr_code_id", nullable = false)
+    @JoinColumn(name = "qr_code_id", nullable = true)
     private QRCode qrCode;
 
     private String telephoneClient;

@@ -298,6 +298,10 @@ public class VendeurController {
                 return ResponseEntity.badRequest()
                         .body(new ApiResponse<RetraitResponse>(false, "Le montant doit être positif", null));
             }
+            if (request.getMontant().compareTo(new BigDecimal("10")) < 0) {
+                return ResponseEntity.badRequest()
+                        .body(new ApiResponse<RetraitResponse>(false, "Le montant minimum est de 10 XAF", null));
+            }
             
             // Valider le numéro de téléphone
             if (request.getTelephone() == null || request.getTelephone().trim().isEmpty()) {

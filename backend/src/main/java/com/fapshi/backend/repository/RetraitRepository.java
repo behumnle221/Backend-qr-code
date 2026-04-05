@@ -28,4 +28,16 @@ public interface RetraitRepository extends JpaRepository<Retrait, Long> {
     
     // Récupérer les retraits avec pagination
     Page<Retrait> findByVendeurIdOrderByDateCreationDesc(Long vendeurId, Pageable pageable);
+    
+    // === Méthodes pour les Clients ===
+    
+    // Récupérer tous les retraits d'un client
+    List<Retrait> findByClientId(Long clientId);
+    
+    // Récupérer le dernier retrait d'un client (pour vérifier l'écart 5min)
+    @Query("SELECT r FROM Retrait r WHERE r.client.id = :clientId ORDER BY r.dateCreation DESC LIMIT 1")
+    Optional<Retrait> findLastRetraitByClient(@Param("clientId") Long clientId);
+    
+    // Récupérer les retraits avec pagination pour client
+    Page<Retrait> findByClientIdOrderByDateCreationDesc(Long clientId, Pageable pageable);
 }

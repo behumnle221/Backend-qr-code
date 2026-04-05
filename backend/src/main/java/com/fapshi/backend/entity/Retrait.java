@@ -17,8 +17,12 @@ public class Retrait {
     private Long id;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vendeur_id", nullable = false)
+    @JoinColumn(name = "vendeur_id", nullable = true)
     private Vendeur vendeur;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_id", nullable = true)
+    private Client client;
     
     @Column(nullable = false)
     private BigDecimal montant;  // Montant à retirer
@@ -130,5 +134,13 @@ public class Retrait {
 
     public void setTelephone(String telephone) {
         this.telephone = telephone;
+    }
+    
+    public Client getClient() {
+        return client;
+    }
+
+    public void setClient(Client client) {
+        this.client = client;
     }
 }

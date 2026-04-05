@@ -49,6 +49,10 @@ public class ClientService {
     public Optional<Client> findByTelephone(String telephone) {
         return clientRepository.findByTelephone(telephone);
     }
+    
+    public Optional<Client> findByEmail(String email) {
+        return clientRepository.findByEmail(email);
+    }
 
     @Transactional
     public void debiterSolde(Long clientId, BigDecimal montant) {

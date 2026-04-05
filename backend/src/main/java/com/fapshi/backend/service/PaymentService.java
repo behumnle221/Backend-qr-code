@@ -96,6 +96,9 @@ public class PaymentService {
         if (request.getMontant() == null || request.getMontant().compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeException("Le montant doit être positif");
         }
+        if (request.getMontant().compareTo(new BigDecimal("10")) < 0) {
+            throw new RuntimeException("Le montant minimum est de 10 XAF");
+        }
         if (request.getOperator() == null || request.getOperator().isBlank()) {
             throw new RuntimeException("L'opérateur est requis");
         }

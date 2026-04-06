@@ -799,6 +799,24 @@ public class PaymentService {
                         case "SUCCESS":
                             retrait.setStatut("SUCCESS");
                             retrait.setMessage("Retrait effectué avec succès");
+                            
+                            // Débiter le solde
+                            if (retrait.getClient() != null) {
+                                try {
+                                    clientService.debiterSolde(retrait.getClient().getId(), retrait.getMontant());
+                                    log.info("💰 Client {} débité de {} pour retrait", retrait.getClient().getId(), retrait.getMontant());
+                                } catch (Exception e) {
+                                    log.error("❌ Erreur débit client: {}", e.getMessage());
+                                }
+                            } else if (retrait.getVendeur() != null) {
+                                try {
+                                    vendeurService.diminuerSolde(retrait.getVendeur().getId(), retrait.getMontant());
+                                    log.info("💰 Vendeur {} débité de {} pour retrait", retrait.getVendeur().getId(), retrait.getMontant());
+                                } catch (Exception e) {
+                                    log.error("❌ Erreur débit vendeur: {}", e.getMessage());
+                                }
+                            }
+                            
                             log.info("📅 Retrait {} validé SUCCESS", retrait.getId());
                             break;
                             

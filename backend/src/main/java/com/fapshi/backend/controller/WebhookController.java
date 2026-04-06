@@ -25,9 +25,11 @@ import com.fapshi.backend.entity.QRCode;
 import com.fapshi.backend.entity.Transaction;
 import com.fapshi.backend.entity.Vendeur;
 import com.fapshi.backend.entity.WebhookNotification;
+import com.fapshi.backend.enums.TypeTransaction;
 import com.fapshi.backend.repository.QRCodeRepository;
 import com.fapshi.backend.repository.TransactionRepository;
 import com.fapshi.backend.repository.WebhookNotificationRepository;
+import com.fapshi.backend.service.ClientService;
 import com.fapshi.backend.service.VendeurService;
 
 @RestController
@@ -41,6 +43,9 @@ public class WebhookController {
 
     @Autowired
     private QRCodeRepository qrCodeRepository;
+
+    @Autowired
+    private ClientService clientService;
 
     @Autowired
     private VendeurService vendeurService;
@@ -231,11 +236,29 @@ public class WebhookController {
         }
     }
 
-    private void handleSuccess(Transaction transaction) {
+private void handleSuccess(Transaction transaction) {
         try {
             log.info("🔄 Début du traitement handleSuccess pour transaction {}", transaction.getId());
             
-            // 1. Marquer le QR code comme utilisé
+            TypeTransaction type = transaction.getTransactionType();
+            log.info("📝 Type de transaction: {}", type);
+            
+            // 1. Pour RECHARGEMENT : créditer le client
+            if (type == TypeTransaction.RECHARGEMENT) {
+                BigDecimal montant = transaction.getMontant();
+                com.fapshi.backend.entity.Client client = transaction.getClient();
+                if (client != null) {
+                    log.info("💰 Créditer client {} pour rechargement de {}", client.getId(), montant);
+                    clientService.crediterSolde(client.getId(), montant);
+                    log.info("✅ Client {} crédité de {} XAF", client.getId(), montant);
+                } else {
+                    log.error("❌ Client null pour rechargement");
+                }
+                log.info("✅ Fin traitement RECHARGEMENT");
+                return;
+            }
+            
+            // 2. Pour PAYMENT_MARCHAND : marquer QR code et créditer vendeur
             QRCode qrCode = transaction.getQrCode();
             if (qrCode != null) {
                 qrCode.setEstUtilise(true);
@@ -245,7 +268,7 @@ public class WebhookController {
                 log.warn("⚠️ QR Code null pour transaction {}", transaction.getId());
             }
 
-            // 2. Augmenter le solde du vendeur
+            // 3. Augmenter le solde du vendeur
             Vendeur vendeur = qrCode != null ? qrCode.getVendeur() : null;
             if (vendeur != null) {
                 BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : transaction.getMontant();
@@ -255,13 +278,13 @@ public class WebhookController {
                 vendeurService.augmenterSolde(vendeur.getId(), montantNet);
                 
                 log.info("💰 Solde vendeur {} augmenté de {}. Nouveau solde: {}", 
-                    vendeur.getId(), montantNet, 
+                   vendeur.getId(), montantNet, 
                     findVendeurById(vendeur.getId()).map(v -> v.getSoldeVirtuel()).orElse(BigDecimal.ZERO));
             } else {
                 log.error("❌ Vendeur null pour transaction {}", transaction.getId());
             }
             
-            log.info("✅ Fin du traitement handleSuccess pour transaction {}", transaction.getId());
+log.info("✅ Fin du traitement handleSuccess pour transaction {}", transaction.getId());
         } catch (Exception e) {
             log.error("❌ Erreur lors du traitement SUCCESS pour transaction {}: {}", transaction.getId(), e.getMessage(), e);
         }

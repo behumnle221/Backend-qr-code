@@ -362,7 +362,7 @@ public class AangaraaWithdrawalService {
         requestEntity.setAmount(amount);
         requestEntity.setPhoneNumber(phoneNumber);
         requestEntity.setOperator(operator);
-        requestEntity.setTypeRequest(TypeRequest.WITHDRAWAL);
+        requestEntity.setTypeRequest(TypeRequest.WITHDRAW_MONEY);
         requestEntity.setDescription("Retrait mobile pour " + username);
         
         Long requestId = null;

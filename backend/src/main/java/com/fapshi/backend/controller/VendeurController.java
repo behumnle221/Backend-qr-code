@@ -369,7 +369,7 @@ public class VendeurController {
                 statut = "SUCCESS";
                 try {
                     vendeurService.diminuerSolde(vendeur.getId(), request.getMontant());
-                    log.info("💰 Vendeur {} débité de {} (statusCode={})", auteur.getId(), request.getMontant(), statusCode);
+                    log.info("💰 Vendeur {} débité de {} (statusCode={})", vendeur.getId(), request.getMontant(), statusCode);
                 } catch (Exception e) {
                     log.error("Erreur lors de la diminution du solde: {}", e.getMessage());
                 }

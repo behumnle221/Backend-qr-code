@@ -315,7 +315,7 @@ public class PaymentService {
             if (vendeur != null) {
                 BigDecimal montantNet = transaction.getMontantNet() != null ? 
                     transaction.getMontantNet() : transaction.getMontant();
-                vendeurService.augmenterSolde(vendeur.getId(), montantNet);
+                auteurService.augmenterSolde(vendeur.getId(), montantNet);
                 log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
             }
         } catch (Exception e) {
@@ -387,7 +387,7 @@ public class PaymentService {
 
             Vendeur vendeur = qrCode.getVendeur();
             BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : transaction.getMontant();
-            vendeurService.augmenterSolde(vendeur.getId(), montantNet);
+            auteurService.augmenterSolde(vendeur.getId(), montantNet);
 
             qrCode.setEstUtilise(true);
             qrCodeRepository.save(qrCode);
@@ -527,7 +527,7 @@ public class PaymentService {
                     if (vendeur != null) {
                         BigDecimal montantNet = transaction.getMontantNet() != null ? 
                             transaction.getMontantNet() : transaction.getMontant();
-                        vendeurService.augmenterSolde(vendeur.getId(), montantNet);
+                        auteurService.augmenterSolde(vendeur.getId(), montantNet);
                         log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
                     }
                 } catch (Exception e) {
@@ -564,7 +564,7 @@ public class PaymentService {
         try {
             Vendeur vendeur = transaction.getQrCode().getVendeur();
             if (vendeur != null) {
-                vendeurService.augmenterSolde(vendeur.getId(), transaction.getMontantNet());
+                auteurService.augmenterSolde(vendeur.getId(), transaction.getMontantNet());
             }
         } catch (Exception e) {
             log.error("Erreur mise à jour solde: {}", e.getMessage());
@@ -721,7 +721,7 @@ public class PaymentService {
                                 Vendeur vendeur = t.getQrCode() != null ? t.getQrCode().getVendeur() : null;
                                 if (vendeur != null) {
                                     BigDecimal montantNet = t.getMontantNet() != null ? t.getMontantNet() : t.getMontant();
-                                    vendeurService.augmenterSolde(vendeur.getId(), montantNet);
+                                    auteurService.augmenterSolde(vendeur.getId(), montantNet);
                                     log.info("📅 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
                                 }
                             } catch (Exception e) {
@@ -775,7 +775,7 @@ public class PaymentService {
         
         try {
             // Récupérer tous les retraits avec statut PENDING
-            List<com.fapshi.backend.entity.Retrait> pendingRetraits = retraitRepository.findByStatut("PENDING");
+            List<com.fapshi.backend.entity.Retrait> pendingRetraits = auteurRepository.findByStatut("PENDING");
             
             log.info("📅 Nombre de retraits PENDING: {}", pendingRetraits.size());
             
@@ -799,7 +799,7 @@ public class PaymentService {
                                 retrait.getId(), ageMinutes);
                         retrait.setStatut("FAILED");
                         retrait.setMessage("Retrait expiré - délai max dépassé");
-                        retraitRepository.save(retrait);
+                        auteurRepository.save(retrait);
                         continue;
                     }
                     
@@ -852,7 +852,7 @@ public class PaymentService {
                                 }
                             } else if (retrait.getVendeur() != null) {
                                 try {
-                                    vendeurService.diminuerSolde(retrait.getVendeur().getId(), retrait.getMontant());
+                                    auteurService.diminuerSolde(retrait.getVendeur().getId(), retrait.getMontant());
                                     log.info("💰 Vendeur {} débité de {} pour retrait", retrait.getVendeur().getId(), retrait.getMontant());
                                 } catch (Exception e) {
                                     log.error("❌ Erreur débit vendeur: {}", e.getMessage());
@@ -879,7 +879,7 @@ public class PaymentService {
                             break;
                     }
                     
-                    retraitRepository.save(retrait);
+                    auteurRepository.save(retrait);
                     log.info("📅 Retrait {} mis à jour vers {}", retrait.getId(), retrait.getStatut());
                     
                 } catch (Exception e) {

@@ -184,33 +184,53 @@ public class ClientController {
                 client.getNom() != null ? client.getNom() : "Client"
             );
             
-            String referenceId = (String) withdrawalResult.get("referenceId");
-            String message = (String) withdrawalResult.get("message");
+// Extraire toutes les infos de la réponse Aangaraa
+            Object refIdObj = withdrawalResult.get("referenceId");
+            String referenceId = refIdObj != null ? refIdObj.toString() : null;
+            Object msgObj = withdrawalResult.get("message");
+            String message = msgObj != null ? msgObj.toString() : null;
+            Object statusObj = withdrawalResult.get("status");
+            String status = statusObj != null ? statusObj.toString() : null;
+            Object scObj = withdrawalResult.get("statusCode");
+            Integer statusCode = scObj != null ? Integer.parseInt(scObj.toString()) : null;
             
             log.info("💰 Résultat retrait client: {}", withdrawalResult);
             
             if (referenceId == null) {
-                referenceId = (String) withdrawalResult.get("transactionId");
+                Object txIdObj = withdrawalResult.get("transactionId");
+                referenceId = txIdObj != null ? txIdObj.toString() : null;
+            }
+            
+            if (message == null || message.isBlank()) {
+                Object txMsgObj = withdrawalResult.get("txMessage");
+                message = txMsgObj != null ? txMsgObj.toString() : null;
+            }
+            
+            // Déterminer le statut : vérifier statusCode 200/201 OU status SUCCESS
+            String statut = "PENDING";
+            if (statusCode != null && (statusCode == 200 || statusCode == 201)) {
+                // statusCode 200/201 = SUCCESS immédiat
+                statut = "SUCCESS";
+                try {
+                    clientService.debiterSolde(clientId, request.getMontant());
+                    log.info("💰 Client {} débité de {} (statusCode={})", clientId, request.getMontant(), statusCode);
+                } catch (Exception e) {
+                    log.error("Erreur lors de la diminution du solde: {}", e.getMessage());
+                }
+            } else if (Boolean.TRUE.equals(withdrawalResult.get("success")) || 
+                       (status != null && ("SUCCESSFUL".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status)))) {
+                statut = "SUCCESS";
+                try {
+                    clientService.debiterSolde(clientId, request.getMontant());
+                } catch (Exception e) {
+                    log.error("Erreur lors de la diminution du solde: {}", e.getMessage());
+                }
+            } else if (status != null && ("FAILED".equalsIgnoreCase(status) || "ERROR".equalsIgnoreCase(status))) {
+                statut = "FAILED";
             }
             
             if (message == null || message.isBlank()) {
                 message = (String) withdrawalResult.get("txMessage");
-            }
-            
-            String statut = "PENDING";
-            if (Boolean.TRUE.equals(withdrawalResult.get("success"))) {
-                String status = (String) withdrawalResult.get("status");
-                
-                if (status != null && ("SUCCESSFUL".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status))) {
-                    statut = "SUCCESS";
-                    try {
-                        clientService.debiterSolde(clientId, request.getMontant());
-                    } catch (Exception e) {
-                        log.error("Erreur lors de la diminution du solde: {}", e.getMessage());
-                    }
-                } else if (status != null && ("FAILED".equalsIgnoreCase(status) || "ERROR".equalsIgnoreCase(status))) {
-                    statut = "FAILED";
-                }
             }
             
             Retrait retrait = new Retrait();

@@ -337,8 +337,20 @@ public class ClientController {
                             retrait.getReferenceId(), retrait.getOperateur());
                     
                     String status = statusResult != null ? (String) statusResult.get("status") : null;
+                    Integer statusCode = statusResult.get("statusCode") != null ? (Integer) statusResult.get("statusCode") : null;
                     
-                    if (status != null && ("SUCCESSFUL".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status))) {
+                    if (statusCode != null && (statusCode == 200 || statusCode == 201)) {
+                        // statusCode 200 ou 201 = SUCCESS
+                        retrait.setStatut("SUCCESS");
+                        retrait.setMessage("Synchronisé:SUCCESS (statusCode=" + statusCode + ")");
+                        try {
+                            clientService.debiterSolde(clientId, retrait.getMontant());
+                            log.info("💰 Client {} débité de {} pour retrait {}", clientId, retrait.getMontant(), retrait.getId());
+                        } catch (Exception e) {
+                            log.error("❌ Erreur débit: {}", e.getMessage());
+                        }
+                        successCount++;
+                    } else if (status != null && ("SUCCESSFUL".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status))) {
                         retrait.setStatut("SUCCESS");
                         retrait.setMessage("Synchronisé:SUCCESS");
                         try {

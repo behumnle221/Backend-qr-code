@@ -437,7 +437,8 @@ public class PaymentService {
      */
     @Transactional
     public void processWebhook(Map<String, Object> payload) {
-        String payToken = (String) payload.get("payToken");
+        Object payTokenObj = payload.get("payToken");
+        String payToken = payTokenObj != null ? payTokenObj.toString() : null;
         String statusFromApi = String.valueOf(payload.getOrDefault("status", "PENDING"));
 
         log.info("🔔 WEBHOOK RECU - Token: {}, Status: {}", payToken, statusFromApi);

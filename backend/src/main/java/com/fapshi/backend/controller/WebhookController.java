@@ -95,12 +95,15 @@ public class WebhookController {
             notification.setDateReception(LocalDateTime.now());
             notification.setTentatives(1); // Première réception
             
-            payToken = (String) payload.getOrDefault("payToken", 
+            Object payTokenObj = payload.getOrDefault("payToken", 
                          payload.getOrDefault("paytoken", 
                          payload.get("token")));
+            payToken = payTokenObj != null ? payTokenObj.toString() : null;
             
-            status = (String) payload.get("status");
-            String transactionIdExterne = (String) payload.get("transaction_id");
+            Object statusObj = payload.get("status");
+            status = statusObj != null ? statusObj.toString() : null;
+            Object transIdObj = payload.get("transaction_id");
+            String transactionIdExterne = transIdObj != null ? transIdObj.toString() : null;
             
             notification.setPayToken(payToken);
             notification.setTransactionIdExterne(transactionIdExterne);

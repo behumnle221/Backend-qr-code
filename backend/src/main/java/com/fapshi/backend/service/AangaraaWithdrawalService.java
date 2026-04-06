@@ -207,9 +207,11 @@ public class AangaraaWithdrawalService {
                 Map<String, Object> result = new HashMap<>();
                 Map<String, Object> data = response.getBody();
                 
-                Integer statusCode = (Integer) data.get("statusCode");
-                String status = (String) data.get("status");
-                String message = (String) data.get("message");
+                Integer statusCode = data.get("statusCode") != null ? (Integer) data.get("statusCode") : null;
+                Object statusObj = data.get("status");
+                String status = statusObj != null ? statusObj.toString() : null;
+                Object messageObj = data.get("message");
+                String message = messageObj != null ? messageObj.toString() : null;
                 
                 // Log complet de la réponse pour debug
                 log.info("📥 Réponse Aangaraa withdrawal - statusCode: {}, status: {}, message: {}", 
@@ -230,21 +232,27 @@ public class AangaraaWithdrawalService {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> txData = (Map<String, Object>) data.get("data");
                     
-                    // Extraire reference_id (plusieurs formats possibles)
-                    String refId = (String) txData.get("reference_id");
-                    if (refId == null) {
-                        refId = (String) txData.get("referenceId");
+                    // Extraire reference_id (plusieurs formats possibles - utiliser toString pour éviter cast error)
+                    Object refIdObj = txData.get("reference_id");
+                    String refId = refIdObj != null ? refIdObj.toString() : null;
+                    if (refId == null || refId.isEmpty()) {
+                        refIdObj = txData.get("referenceId");
+                        refId = refIdObj != null ? refIdObj.toString() : null;
                     }
-                    if (refId == null) {
-                        refId = (String) txData.get("withdrawal_id");
+                    if (refId == null || refId.isEmpty()) {
+                        refIdObj = txData.get("withdrawal_id");
+                        refId = refIdObj != null ? refIdObj.toString() : null;
                     }
                     
-                    String txId = (String) txData.get("transaction_id");
-                    if (txId == null) {
-                        txId = (String) txData.get("transactionId");
+                    Object txIdObj = txData.get("transaction_id");
+                    String txId = txIdObj != null ? txIdObj.toString() : null;
+                    if (txId == null || txId.isEmpty()) {
+                        txIdObj = txData.get("transactionId");
+                        txId = txIdObj != null ? txIdObj.toString() : null;
                     }
-                    if (txId == null) {
-                        txId = (String) txData.get("withdrawal_id");
+                    if (txId == null || txId.isEmpty()) {
+                        txIdObj = txData.get("withdrawal_id");
+                        txId = txIdObj != null ? txIdObj.toString() : null;
                     }
                     
                     // Mettre en priorité le reference_id pour le referenceId

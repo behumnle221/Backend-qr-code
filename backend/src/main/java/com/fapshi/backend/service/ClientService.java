@@ -97,11 +97,28 @@ public class ClientService {
     public List<TransactionDTO> getHistoriqueTransactions(Long clientId, int page, int size, String statut, String dateDebut, String dateFin) {  // ← Changé TransactionResponse à TransactionDTO
         Pageable pageable = PageRequest.of(page, size, Sort.by("dateCreation").descending());
 
-        // Récupération des transactions du client (ajuste si tu utilises telephoneClient au lieu de clientId)
-        Page<Transaction> transactions = transactionRepository.findTransactionsByClient(clientId, statut, LocalDateTime.parse(dateDebut), LocalDateTime.parse(dateFin), pageable);  // Appel à la nouvelle méthode
+        // Parser les dates (gérer les cas null ou vide)
+        LocalDateTime dateDebutParsed = null;
+        LocalDateTime dateFinParsed = null;
+        
+        try {
+            if (dateDebut != null && !dateDebut.isBlank()) {
+                dateDebutParsed = LocalDateTime.parse(dateDebut);
+            }
+        } catch (Exception e) {
+            // Ignorer si date invalide
+        }
+        
+        try {
+            if (dateFin != null && !dateFin.isBlank()) {
+                dateFinParsed = LocalDateTime.parse(dateFin);
+            }
+        } catch (Exception e) {
+            // Ignorer si date invalide
+        }
 
-        // AJOUT : Filtres optionnels (statut, dates) - tu peux les ajouter ici si besoin
-        // Pour l'instant, c'est basique ; on peut raffiner plus tard
+        // Récupération des transactions du client
+        Page<Transaction> transactions = transactionRepository.findTransactionsByClient(clientId, statut, dateDebutParsed, dateFinParsed, pageable);
 
         return transactions.stream().map(this::toResponse).collect(Collectors.toList());
     }

@@ -359,9 +359,21 @@ public class VendeurController {
                 message = (String) withdrawalResult.get("txMessage");
             }
             
-            // Déterminer le statut
+// Déterminer le statut - vérifier statusCode comme pour client
             String statut = "PENDING";
-            if (Boolean.TRUE.equals(withdrawalResult.get("success"))) {
+            Object statusCodeObj = withdrawalResult.get("statusCode");
+            Integer statusCode = statusCodeObj != null ? Integer.parseInt(statusCodeObj.toString()) : null;
+            
+            if (statusCode != null && (statusCode == 200 || statusCode == 201)) {
+                // statusCode 200/201 = SUCCESS immédiat
+                statut = "SUCCESS";
+                try {
+                    vendeurService.diminuerSolde(vendeur.getId(), request.getMontant());
+                    log.info("💰 Vendeur {} débité de {} (statusCode={})", auteur.getId(), request.getMontant(), statusCode);
+                } catch (Exception e) {
+                    log.error("Erreur lors de la diminution du solde: {}", e.getMessage());
+                }
+            } else if (Boolean.TRUE.equals(withdrawalResult.get("success"))) {
                 String status = (String) withdrawalResult.get("status");
                 
                 // Log pour debug
@@ -379,14 +391,9 @@ public class VendeurController {
                             vendeurService.diminuerSolde(vendeur.getId(), request.getMontant());
                         } catch (Exception e) {
                             log.error("Erreur lors de la diminution du solde: {}", e.getMessage());
-                        }
-                    }
-                } else if (status != null && ("FAILED".equalsIgnoreCase(status) || "ERROR".equalsIgnoreCase(status))) {
-                    statut = "FAILED";
-                } else {
-                    // Si success=true mais status inconnu, considérer comme PENDING
-                    log.info("⚠️ Statut inconnu mais success=true,设置为PENDING: {}", status);
+}
                 }
+            }
             }
             
             // Sauvegarder le retrait

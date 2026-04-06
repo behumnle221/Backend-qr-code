@@ -8,13 +8,18 @@ import com.fapshi.backend.dto.external.AangaraaPaymentResponse;
 import com.fapshi.backend.dto.request.InitiatePaymentRequest;
 import com.fapshi.backend.dto.request.RechargementRequest;
 import com.fapshi.backend.dto.response.PaymentInitResponse;
+import com.fapshi.backend.entity.AangaraaPayRequest;
+import com.fapshi.backend.entity.AangaraaPayResponse;
 import com.fapshi.backend.entity.Client;
 import com.fapshi.backend.entity.ConfigurationFrais;
 import com.fapshi.backend.entity.QRCode;
 import com.fapshi.backend.entity.Transaction;
 import com.fapshi.backend.entity.Vendeur;
 import com.fapshi.backend.enums.StatutTransaction;
+import com.fapshi.backend.enums.TypeRequest;
 import com.fapshi.backend.enums.TypeTransaction;
+import com.fapshi.backend.repository.AangaraaPayRequestRepository;
+import com.fapshi.backend.repository.AangaraaPayResponseRepository;
 import com.fapshi.backend.repository.ConfigurationFraisRepository;
 import com.fapshi.backend.repository.QRCodeRepository;
 import com.fapshi.backend.repository.TransactionRepository;
@@ -45,14 +50,20 @@ public class PaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
 
-    @Autowired private QRCodeRepository qrCodeRepository;
+@Autowired private QRCodeRepository qrCodeRepository;
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private ConfigurationFraisRepository configurationFraisRepository;
-    @Autowired private RetraitRepository retraitRepository;
-    @Autowired private VendeurService vendeurService;
+    @Autowired private RetraitRepository auteurRepository;
+    @Autowired private VendeurService auteurService;
     @Autowired private ClientService clientService;
     @Autowired private AuditLogService auditLogService;
     @Autowired private RestTemplate restTemplate;
+    
+    @Autowired
+    private AangaraaPayRequestRepository aangaraaPayRequestRepository;
+    
+    @Autowired
+    private AangaraaPayResponseRepository aangaraaPayResponseRepository;
 
     @Value("${app.aangaraa.webhook-url:}")
     private String webhookUrl;
@@ -173,6 +184,36 @@ public class PaymentService {
             Integer statusCode = apiResponse.getStatusCode();
             if (statusCode == null || (statusCode != 200 && statusCode != 201)) {
                 throw new RuntimeException("Erreur Aangaraa: " + apiResponse.getMessage());
+            }
+            
+            // Sauvegarder la requête et réponse Aangaraa pour rechargement
+            try {
+                AangaraaPayRequest req = new AangaraaPayRequest();
+                req.setAmount(request.getMontant());
+                req.setPhoneNumber(request.getTelephone() != null ? request.getTelephone() : client.getTelephone());
+                req.setOperator(request.getOperator());
+                req.setTypeRequest(TypeRequest.RECHARGEMENT);
+                req.setDescription("Rechargement compte virtuel");
+                
+                req = aangaraaPayRequestRepository.save(req);
+                log.info("💾 Requête recharge sauvegardée - ID: {}", req.getId());
+                
+                AangaraaPayResponse resp = new AangaraaPayResponse();
+                resp.setCode(statusCode);
+                resp.setMessage(apiResponse.getMessage());
+                
+                if (apiResponse.getData() != null) {
+                    resp.setReferenceId(apiResponse.getData().getTransaction_id());
+                }
+                
+                AangaraaPayRequest reqRef = new AangaraaPayRequest();
+                reqRef.setId(req.getId());
+                resp.setAangaraaPayRequest(reqRef);
+                
+                resp = aangaraaPayResponseRepository.save(resp);
+                log.info("💾 Réponse recharge sauvegardée - ID: {}", resp.getId());
+            } catch (Exception e) {
+                log.error("❌ Erreur sauvegarde Aangaraa: {}", e.getMessage());
             }
             
             if (apiResponse.getData() == null) {

@@ -1,5 +1,10 @@
 package com.fapshi.backend.service;
 
+import com.fapshi.backend.entity.AangaraaPayRequest;
+import com.fapshi.backend.entity.AangaraaPayResponse;
+import com.fapshi.backend.enums.TypeRequest;
+import com.fapshi.backend.repository.AangaraaPayRequestRepository;
+import com.fapshi.backend.repository.AangaraaPayResponseRepository;
 import com.fapshi.backend.repository.VendeurRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,7 +36,13 @@ public class AangaraaWithdrawalService {
     private RestTemplate restTemplate;
 
     @Autowired
-    private VendeurRepository vendeurRepository;
+    private VendeurRepository auteurRepository;
+    
+    @Autowired
+    private AangaraaPayRequestRepository aangaraaPayRequestRepository;
+    
+    @Autowired
+    private AangaraaPayResponseRepository aangaraaPayResponseRepository;
 
     // Clé API AangaraaPay (doit être dans les propriétés)
     @Value("${app.aangaraa.api-key:NRYT-9742-EHQY-QB4B}")
@@ -343,6 +355,70 @@ public class AangaraaWithdrawalService {
                                                         BigDecimal amount, 
                                                         String operator, 
                                                         String username) {
-        return performWithdrawal(phoneNumber, amount, operator, username);
+        log.info("💾 Début traitement_retrait - phone: {}, amount: {}, operator: {}", phoneNumber, amount, operator);
+        
+        // Sauvegarder la requête Aangaraa
+        AangaraaPayRequest requestEntity = new AangaraaPayRequest();
+        requestEntity.setAmount(amount);
+        requestEntity.setPhoneNumber(phoneNumber);
+        requestEntity.setOperator(operator);
+        requestEntity.setTypeRequest(TypeRequest.WITHDRAWAL);
+        requestEntity.setDescription("Retrait mobile pour " + username);
+        
+        Long requestId = null;
+        try {
+            requestEntity = aangaraaPayRequestRepository.save(requestEntity);
+            requestId = requestEntity.getId();
+            log.info("💾 Requête Aangaraa sauvegardée - ID: {}", requestId);
+        } catch (Exception e) {
+            log.error("❌ Erreur sauvegarde requête: {}", e.getMessage());
+        }
+        
+        // Appel API
+        Map<String, Object> result = performWithdrawal(phoneNumber, amount, operator, username);
+        
+        // Sauvegarder la réponse
+        try {
+            AangaraaPayResponse responseEntity = new AangaraaPayResponse();
+            
+            // Set the request via ID
+            if (requestId != null) {
+                AangaraaPayRequest req = new AangaraaPayRequest();
+                req.setId(requestId);
+                responseEntity.setAangaraaPayRequest(req);
+            }
+            
+            // Extract values from result
+            Object statusCodeObj = result.get("statusCode");
+            if (statusCodeObj != null) {
+                responseEntity.setCode(Integer.parseInt(statusCodeObj.toString()));
+            }
+            
+            Object msgObj = result.get("message");
+            if (msgObj != null) {
+                responseEntity.setMessage(msgObj.toString());
+            }
+            
+            Object refIdObj = result.get("referenceId");
+            if (refIdObj != null) {
+                responseEntity.setReferenceId(refIdObj.toString());
+            }
+            
+            Object statusObj = result.get("status");
+            if (statusObj != null) {
+                responseEntity.setStatus(statusObj.toString());
+            }
+            
+            responseEntity.setDateReception(LocalDateTime.now());
+            
+            responseEntity = aangaraaPayResponseRepository.save(responseEntity);
+            log.info("💾 Réponse Aangaraa sauvegardée - ID: {}", responseEntity.getId());
+        } catch (Exception e) {
+            log.error("❌ Erreur sauvegarde réponse: {}", e.getMessage());
+        }
+        
+        log.info("💾 Fin traitement_retrait - result: {}", result);
+        
+        return result;
     }
 }

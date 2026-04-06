@@ -306,4 +306,74 @@ public class ClientController {
                 .orElseThrow(() -> new RuntimeException("Client non trouvé"))
                 .getId();
     }
+    
+    /**
+     * Synchroniser les retraits PENDING du client (appel manuel)
+     * Endpoint : POST /api/client/retraits/sync
+     */
+    @PostMapping("/retraits/sync")
+    public ResponseEntity<ApiResponse<Object>> syncRetraits(Authentication authentication) {
+        try {
+            Long clientId = getClientIdFromAuth(authentication);
+            
+            List<Retrait> retraitsPending = retraitRepository.findByClientId(clientId)
+                    .stream()
+                    .filter(r -> "PENDING".equals(r.getStatut()))
+                    .toList();
+            
+            log.info("📅 Sync retraits - {} retraits PENDING pour client {}", retraitsPending.size(), clientId);
+            
+            int successCount = 0;
+            int updatedCount = 0;
+            
+            for (Retrait retrait : retraitsPending) {
+                try {
+                    if (retrait.getReferenceId() == null || retrait.getReferenceId().isBlank()) {
+                        log.warn("⚠️ Retrait {} sans referenceId, ignoré", retrait.getId());
+                        continue;
+                    }
+                    
+                    Map<String, Object> statusResult = aangaraaWithdrawalService.checkWithdrawalStatus(
+                            retrait.getReferenceId(), retrait.getOperateur());
+                    
+                    String status = statusResult != null ? (String) statusResult.get("status") : null;
+                    
+                    if (status != null && ("SUCCESSFUL".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status))) {
+                        retrait.setStatut("SUCCESS");
+                        retrait.setMessage("Synchronisé:SUCCESS");
+                        try {
+                            clientService.debiterSolde(clientId, retrait.getMontant());
+                            log.info("💰 Client {} débité de {} pour retrait {}", clientId, retrait.getMontant(), retrait.getId());
+                        } catch (Exception e) {
+                            log.error("❌ Erreur débit: {}", e.getMessage());
+                        }
+                        successCount++;
+                    } else if (status != null && ("FAILED".equalsIgnoreCase(status) || "ERROR".equalsIgnoreCase(status))) {
+                        retrait.setStatut("FAILED");
+                        retrait.setMessage("Synchronisé:FAILED");
+                        updatedCount++;
+                    }
+                    
+                    retrait.setDateAttempt(LocalDateTime.now());
+                    retraitRepository.save(retrait);
+                    
+                } catch (Exception e) {
+                    log.error("❌ Erreur sync retrait {}: {}", retrait.getId(), e.getMessage());
+                }
+            }
+            
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("totalPending", retraitsPending.size());
+            result.put("success", successCount);
+            result.put("failed", updatedCount);
+            result.put("pending", retraitsPending.size() - successCount - updatedCount);
+            
+            return ResponseEntity.ok()
+                    .body(new ApiResponse<Object>(true, "Sync terminé", result));
+                    
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<Object>(false, "Erreur sync: " + e.getMessage(), null));
+        }
+    }
 }

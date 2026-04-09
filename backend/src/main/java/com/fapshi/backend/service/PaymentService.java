@@ -7,6 +7,7 @@ package com.fapshi.backend.service;
 import com.fapshi.backend.dto.external.AangaraaPaymentResponse;
 import com.fapshi.backend.dto.request.InitiatePaymentRequest;
 import com.fapshi.backend.dto.request.RechargementRequest;
+import com.fapshi.backend.dto.request.VirtualPaymentRequest;
 import com.fapshi.backend.dto.response.PaymentInitResponse;
 import com.fapshi.backend.entity.AangaraaPayRequest;
 import com.fapshi.backend.entity.AangaraaPayResponse;
@@ -147,10 +148,12 @@ public class PaymentService {
         payload.put("notify_url", notifyUrl);
         
         String returnUrl = "https://backend-qr-code-u2kx.onrender.com/api/payments/success";
+        
         payload.put("return_url", returnUrl);
         
-        // Ajouter les infos téléphone
+        // Ajouter les infos téléphone 
         // Utiliser le téléphone de la requête si fourni, sinon celui du client
+
         String phone;
         if (request.getTelephone() != null && !request.getTelephone().isBlank()) {
             phone = request.getTelephone().trim().replaceAll("[^0-9]", "");
@@ -469,6 +472,107 @@ public class PaymentService {
             log.error("❌ Erreur lors de l'appel Aangaraa: {} - Type: {}", e.getMessage(), e.getClass().getName());
             log.error("❌ Stack trace: ", e);
             throw new RuntimeException("Erreur d'initialisation du paiement: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Paiement simplifié par solde virtuel (TRANSFERT_VIRTUEL)
+     * Aucun appel à Aangaraa, débit immédiat du solde client
+     */
+    @Transactional
+    public PaymentInitResponse initiateVirtualPayment(Long clientId, VirtualPaymentRequest request) {
+        try {
+            // Validation
+            if (request.getQrCodeId() == null) {
+                throw new RuntimeException("L'ID du QR Code est requis");
+            }
+            if (request.getMontant() == null || request.getMontant().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new RuntimeException("Le montant doit être positif");
+            }
+            log.info("✅ Requête validation ok");
+
+            // Récupérer le QR Code
+            QRCode qrCode = qrCodeRepository.findById(request.getQrCodeId())
+                    .orElseThrow(() -> new RuntimeException("QR Code non trouvé: " + request.getQrCodeId()));
+            
+            // Valider le QR Code
+            if (qrCode.isEstUtilise()) {
+                throw new RuntimeException("QR Code déjà payé");
+            }
+            if (qrCode.getDateExpiration().isBefore(LocalDateTime.now())) {
+                throw new RuntimeException("QR Code expiré");
+            }
+            if (qrCode.getVendeur() == null) {
+                throw new RuntimeException("Le QR Code n'est associé à aucun vendeur");
+            }
+            log.info("✅ QR Code valide");
+
+            // Récupérer le client
+            Client client = clientService.findById(clientId)
+                    .orElseThrow(() -> new RuntimeException("Client non trouvé"));
+            
+            // Vérifier que le client a assez de solde
+            BigDecimal solde = clientService.getSoldeVirtuel(clientId);
+            if (solde.compareTo(request.getMontant()) < 0) {
+                throw new RuntimeException("Solde insuffisant. Solde: " + solde + " XAF, Montant demandé: " + request.getMontant() + " XAF");
+            }
+            log.info("✅ Solde suffisant: {} XAF", solde);
+
+            // Créer la transaction
+            Transaction transaction = new Transaction();
+            transaction.setQrCode(qrCode);
+            transaction.setClient(client);
+            transaction.setTelephoneClient(client.getTelephone());
+            transaction.setMontant(request.getMontant());
+            transaction.setTransactionType(TypeTransaction.TRANSFERT_VIRTUEL);
+            transaction.setStatut("PENDING");
+            transaction.setDateCreation(LocalDateTime.now());
+            
+            // Générer l'ID de transaction
+            long timestamp = System.currentTimeMillis();
+            int random = (int) (Math.random() * 10000);
+            transaction.setTransactionId("TRANS_" + timestamp + "_" + random);
+            
+            // Calculer les frais et montant net
+            calculateCommissionAndNetAmount(transaction);
+            
+            transaction = transactionRepository.save(transaction);
+            log.info("✅ Transaction créée: ID={}, transactionId={}, montant={}", transaction.getId(), transaction.getTransactionId(), request.getMontant());
+
+            // DÉBIT du compte du client
+            clientService.debiterSolde(clientId, request.getMontant());
+            log.info("💳 Solde client débité de {} XAF", request.getMontant());
+
+            // CRÉDIT du compte du vendeur
+            Vendeur vendeur = qrCode.getVendeur();
+            BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : request.getMontant();
+            auteurService.augmenterSolde(vendeur.getId(), montantNet);
+            log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
+
+            // Marquer le QR code comme utilisé
+            qrCode.setEstUtilise(true);
+            qrCodeRepository.save(qrCode);
+            log.info("✅ QR Code {} marqué comme utilisé", qrCode.getId());
+
+            // Marquer la transaction comme réussie
+            transaction.setStatut("SUCCESS");
+            transactionRepository.save(transaction);
+            log.info("✅ Transaction {} marquée SUCCESS", transaction.getId());
+
+            // Log d'audit
+            auditLogService.log(client.getId(), client.getTelephone(), "PAYMENT_VIRTUEL", 
+                    "Paiement par solde virtuel vers vendeur " + vendeur.getId() + " montant " + request.getMontant(), transaction);
+
+            // Réponse
+            PaymentInitResponse response = new PaymentInitResponse();
+            response.setSuccess(true);
+            response.setMessage("Paiement par solde virtuel effectué avec succès");
+            response.setTransactionId(transaction.getId());
+            return response;
+            
+        } catch (Exception e) {
+            log.error("❌ Erreur paiement virtuel: {}", e.getMessage());
+            throw new RuntimeException("Erreur paiement virtuel: " + e.getMessage());
         }
     }
 

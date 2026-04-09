@@ -1,12 +1,16 @@
 package com.fapshi.backend.controller;
 
 import com.fapshi.backend.dto.request.InitiatePaymentRequest;
+import com.fapshi.backend.dto.request.VirtualPaymentRequest;
 import com.fapshi.backend.dto.response.PaymentInitResponse;
+import com.fapshi.backend.entity.Client;
 import com.fapshi.backend.entity.Transaction;
 import com.fapshi.backend.repository.TransactionRepository;
+import com.fapshi.backend.service.ClientService;
 import com.fapshi.backend.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -21,13 +25,34 @@ public class PaymentController {
     
     @Autowired
     private TransactionRepository transactionRepository;
+    
+    @Autowired
+    private ClientService clientService;
 
     @PostMapping("/initiate")
     public ResponseEntity<PaymentInitResponse> initiatePayment(@RequestBody InitiatePaymentRequest request) {
         PaymentInitResponse response = paymentService.initiatePayment(request);
         return ResponseEntity.ok(response);
     }
-    
+
+    /**
+     * Paiement simplif\u00e9 par solde virtuel interne
+     * Requ\u00eate minimale: uniquement qrCodeId et montant
+     */
+    @PostMapping("/virtual")
+    public ResponseEntity<PaymentInitResponse> initiateVirtualPayment(
+            Authentication authentication,
+            @RequestBody VirtualPaymentRequest request) {
+        
+        // R\u00e9cup\u00e9rer le client depuis l'authentification (JWT)
+        String username = authentication.getName();
+        Client client = clientService.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("Client non trouv\u00e9"));
+        
+        // Appel au service avec l'ID du client
+        PaymentInitResponse response = paymentService.initiateVirtualPayment(client.getId(), request);
+        return ResponseEntity.ok(response);
+    }
     /**
      * Endpoint de retour après paiement sur AangaraaPay
      * Ce endpoint est appelé par AangaraaPay après que le client a terminé le paiement

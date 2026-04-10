@@ -307,6 +307,14 @@ log.info("✅ Fin du traitement handleSuccess pour transaction {}", transaction.
             transaction.setStatut(status.toUpperCase());
             transactionRepository.save(transaction);
             log.info("✅ Transaction {} mise à jour pour test", transactionId);
+            
+            // Appeler handleSuccess si le statut est SUCCESS
+            if ("SUCCESS".equalsIgnoreCase(status) || "SUCCESSFUL".equalsIgnoreCase(status)) {
+                log.info("🔄 Appel de handleSuccess pour transaction {}", transactionId);
+                handleSuccess(transaction);
+                log.info("✅ handleSuccess terminé pour transaction {}", transactionId);
+            }
+            
             return ResponseEntity.ok("Test OK");
         } else {
             return ResponseEntity.badRequest().body("Transaction non trouvée");

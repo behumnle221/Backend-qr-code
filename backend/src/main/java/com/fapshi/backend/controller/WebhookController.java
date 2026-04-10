@@ -373,6 +373,30 @@ log.info("✅ Fin du traitement handleSuccess pour transaction {}", transaction.
             ));
         }
     }
+    
+    // ============================================
+    // ENDPOINT ADMIN - Créditer manuellement un client (TEST UNIQUEMENT)
+    // ============================================
+    @PostMapping("/admin/credit-client")
+    public ResponseEntity<?> creditClientManual(@RequestParam Long clientId, @RequestParam BigDecimal montant) {
+        try {
+            log.info("💰 ADMIN: Crédit manuel de {} XAF pour client {}", montant, clientId);
+            clientService.crediterSolde(clientId, montant);
+            log.info("✅ Client {} crédité de {} XAF avec succès", clientId, montant);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Client crédité de " + montant + " XAF",
+                "clientId", clientId,
+                "montant", montant
+            ));
+        } catch (Exception e) {
+            log.error("❌ Erreur lors du crédit manuel: {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                "success", false,
+                "message", "Erreur: " + e.getMessage()
+            ));
+        }
+    }
 } 
 
 

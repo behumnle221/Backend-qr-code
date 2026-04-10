@@ -189,34 +189,14 @@ public class PaymentService {
                 throw new RuntimeException("Erreur Aangaraa: " + apiResponse.getMessage());
             }
             
-            // Sauvegarder la requête et réponse Aangaraa pour rechargement
+            // Sauvegarder la requête et réponse Aangaraa dans une transaction séparée
+            // (ne bloque pas le rechargement si erreur)
             try {
-                AangaraaPayRequest req = new AangaraaPayRequest();
-                req.setAmount(request.getMontant());
-                req.setPhoneNumber(request.getTelephone() != null ? request.getTelephone() : client.getTelephone());
-                req.setOperator(request.getOperator());
-                req.setTypeRequest(TypeRequest.RECHARGEMENT);
-                req.setDescription("Rechargement compte virtuel");
-                
-                req = aangaraaPayRequestRepository.save(req);
-                log.info("💾 Requête recharge sauvegardée - ID: {}", req.getId());
-                
-                AangaraaPayResponse resp = new AangaraaPayResponse();
-                resp.setCode(statusCode);
-                resp.setMessage(apiResponse.getMessage());
-                
-                if (apiResponse.getData() != null) {
-                    resp.setReferenceId(apiResponse.getData().getTransaction_id());
-                }
-                
-                AangaraaPayRequest reqRef = new AangaraaPayRequest();
-                reqRef.setId(req.getId());
-                resp.setAangaraaPayRequest(reqRef);
-                
-                resp = aangaraaPayResponseRepository.save(resp);
-                log.info("💾 Réponse recharge sauvegardée - ID: {}", resp.getId());
+                saveAangaraaDataAsync(request.getMontant(), 
+                    request.getTelephone() != null ? request.getTelephone() : client.getTelephone(),
+                    request.getOperator(), statusCode, apiResponse);
             } catch (Exception e) {
-                log.error("❌ Erreur sauvegarde Aangaraa: {}", e.getMessage());
+                log.warn("⚠️  Erreur sauvegarde Aangaraa (non-bloquant): {}", e.getMessage());
             }
             
             if (apiResponse.getData() == null) {
@@ -577,7 +557,45 @@ public class PaymentService {
     }
 
     /**
-     * Étape 2 : Traitement du Webhook (Aangaraa -> Backend)
+     * Sauvegarde les données Aangaraa dans une transaction indépendante
+     * N'affecte pas la transaction principale si erreur
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    private void saveAangaraaDataAsync(BigDecimal montant, String telephone, String operator, 
+                                       Integer statusCode, AangaraaPaymentResponse apiResponse) {
+        try {
+            AangaraaPayRequest req = new AangaraaPayRequest();
+            req.setAmount(montant);
+            req.setPhoneNumber(telephone);
+            req.setOperator(operator);
+            req.setTypeRequest(TypeRequest.RECHARGEMENT);
+            req.setDescription("Rechargement compte virtuel");
+            
+            req = aangaraaPayRequestRepository.save(req);
+            log.info("💾 Requête recharge sauvegardée - ID: {}", req.getId());
+            
+            AangaraaPayResponse resp = new AangaraaPayResponse();
+            resp.setCode(statusCode);
+            resp.setMessage(apiResponse.getMessage());
+            
+            if (apiResponse.getData() != null) {
+                resp.setReferenceId(apiResponse.getData().getTransaction_id());
+            }
+            
+            AangaraaPayRequest reqRef = new AangaraaPayRequest();
+            reqRef.setId(req.getId());
+            resp.setAangaraaPayRequest(reqRef);
+            
+            resp = aangaraaPayResponseRepository.save(resp);
+            log.info("💾 Réponse recharge sauvegardée - ID: {}", resp.getId());
+        } catch (Exception e) {
+            log.error("❌ Erreur sauvegarde Aangaraa: {}", e.getMessage());
+            // Cette erreur n'affecte pas la transaction principale
+            // Le rechargement continue même si cette sauvegarde échoue
+        }
+    }
+
+    /**
      * Reçoit la confirmation instantanée
      */
     @Transactional

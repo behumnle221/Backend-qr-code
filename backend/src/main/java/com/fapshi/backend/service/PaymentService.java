@@ -840,24 +840,42 @@ public class PaymentService {
                         case "SUCCESS":
                             t.setStatut("SUCCESSFUL");
                             
-                            // Marquer le QR code comme utilisé
-                            QRCode qrCode = t.getQrCode();
-                            if (qrCode != null) {
-                                qrCode.setEstUtilise(true);
-                                qrCodeRepository.save(qrCode);
-                                log.info("📅 QR Code {} marqué comme utilisé", qrCode.getId());
-                            }
+                            // Vérifier le type de transaction
+                            TypeTransaction typeTrans = t.getTransactionType();
                             
-                            // Créditer le vendeur
-                            try {
-                                Vendeur vendeur = t.getQrCode() != null ? t.getQrCode().getVendeur() : null;
-                                if (vendeur != null) {
-                                    BigDecimal montantNet = t.getMontantNet() != null ? t.getMontantNet() : t.getMontant();
-                                    auteurService.augmenterSolde(vendeur.getId(), montantNet);
-                                    log.info("📅 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
+                            // Pour RECHARGEMENT : créditer le client
+                            if (typeTrans == TypeTransaction.RECHARGEMENT) {
+                                try {
+                                    Client client = t.getClient();
+                                    if (client != null) {
+                                        clientService.crediterSolde(client.getId(), t.getMontant());
+                                        log.info("📅 Client {} crédité de {} XAF (RECHARGEMENT)", client.getId(), t.getMontant());
+                                    }
+                                } catch (Exception e) {
+                                    log.error("📅 Erreur lors du crédit du client: {}", e.getMessage());
                                 }
-                            } catch (Exception e) {
-                                log.error("📅 Erreur lors du crédit du vendeur: {}", e.getMessage());
+                            }
+                            // Pour PAYMENT_MARCHAND : marquer QR code et créditer vendeur
+                            else if (typeTrans == TypeTransaction.PAYMENT_MARCHAND || typeTrans == TypeTransaction.TRANSFERT_VIRTUEL) {
+                                // Marquer le QR code comme utilisé
+                                QRCode qrCode = t.getQrCode();
+                                if (qrCode != null) {
+                                    qrCode.setEstUtilise(true);
+                                    qrCodeRepository.save(qrCode);
+                                    log.info("📅 QR Code {} marqué comme utilisé", qrCode.getId());
+                                }
+                                
+                                // Créditer le vendeur
+                                try {
+                                    Vendeur vendeur = t.getQrCode() != null ? t.getQrCode().getVendeur() : null;
+                                    if (vendeur != null) {
+                                        BigDecimal montantNet = t.getMontantNet() != null ? t.getMontantNet() : t.getMontant();
+                                        auteurService.augmenterSolde(vendeur.getId(), montantNet);
+                                        log.info("📅 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
+                                    }
+                                } catch (Exception e) {
+                                    log.error("📅 Erreur lors du crédit du vendeur: {}", e.getMessage());
+                                }
                             }
                             
                             log.info("📅 Transaction {} validée SUCCESS", t.getId());

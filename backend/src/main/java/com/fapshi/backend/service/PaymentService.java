@@ -168,6 +168,12 @@ public class PaymentService {
         // Appel à Aangaraa
         String url = request.isDirectPayment() ? URL_DIRECT : URL_REDIRECT;
         
+        // DEBUG: Log complet du payload
+        log.info("🔍 DEBUG PAYLOAD AANGARAA - URL: {}", url);
+        log.info("🔍 DEBUG PAYLOAD: amount={}, phone={}, operator={}, devise_id={}, transaction_id={}, notify_url={}, return_url={}", 
+            payload.get("amount"), payload.get("phone_number"), payload.get("operator"), 
+            payload.get("devise_id"), payload.get("transaction_id"), payload.get("notify_url"), payload.get("return_url"));
+        
         try {
             log.info("📤 Appel Aangaraa pour rechargement: {}", url);
             
@@ -179,6 +185,10 @@ public class PaymentService {
                 url, HttpMethod.POST, entity, AangaraaPaymentResponse.class);
             
             AangaraaPaymentResponse apiResponse = responseEntity.getBody();
+            
+            // DEBUG: Log réponse complète
+            log.info("🔍 DEBUG REPONSE AANGARAA: statusCode={}, message={}, data={}", 
+                apiResponse.getStatusCode(), apiResponse.getMessage(), apiResponse.getData());
             
             if (apiResponse == null) {
                 throw new RuntimeException("Réponse vide de l'API Aangaraa");

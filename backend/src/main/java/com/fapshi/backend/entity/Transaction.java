@@ -20,6 +20,7 @@ public class Transaction {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", nullable = false)
     private TypeTransaction transactionType = TypeTransaction.PAYMENT_MARCHAND;
 
     @ManyToOne

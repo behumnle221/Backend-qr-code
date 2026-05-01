@@ -533,10 +533,10 @@ public class PaymentService {
             clientService.debiterSolde(clientId, request.getMontant());
             log.info("💳 Solde client débité de {} XAF", request.getMontant());
 
-            // CRÉDIT du compte du vendeur
-            Vendeur vendeur = qrCode.getVendeur();
-            BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : request.getMontant();
-            auteurService.augmenterSolde(vendeur.getId(), montantNet);
+// CRÉDIT du compte du vendeur
+             Vendeur vendeur = qrCode.getVendeur();
+             BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : request.getMontant();
+             vendeurService.augmenterSolde(vendeur.getId(), montantNet);
             log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
 
             // Marquer le QR code comme utilisé

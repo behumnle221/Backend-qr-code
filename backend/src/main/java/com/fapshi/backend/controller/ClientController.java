@@ -337,7 +337,7 @@ public class ClientController {
             Long clientId = getClientIdFromAuth(authentication);
             
             List<Retrait> retraitsPending = retraitRepository.findByClientId(clientId)
-                    .stream()
+                    .stream() 
                     .filter(r -> "PENDING".equals(r.getStatut()))
                     .toList();
             

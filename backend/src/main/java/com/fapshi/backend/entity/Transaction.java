@@ -18,9 +18,8 @@ public class Transaction {
     @Column
     private String transactionId;
 
-    @Column(nullable = false)
+    @Column(name = "type_transaction", nullable = false)
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type", nullable = false)
     private TypeTransaction transactionType = TypeTransaction.PAYMENT_MARCHAND;
 
     @ManyToOne

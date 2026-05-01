@@ -55,7 +55,7 @@ public class PaymentService {
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private ConfigurationFraisRepository configurationFraisRepository;
     @Autowired private RetraitRepository auteurRepository;
-    @Autowired private VendeurService auteurService;
+    @Autowired private VendeurService vendeurService;
     @Autowired private ClientService clientService;
     @Autowired private AuditLogService auditLogService;
     @Autowired private RestTemplate restTemplate;

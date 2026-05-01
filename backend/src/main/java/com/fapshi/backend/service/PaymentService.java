@@ -38,7 +38,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-
+   
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -54,7 +54,7 @@ public class PaymentService {
 @Autowired private QRCodeRepository qrCodeRepository;
     @Autowired private TransactionRepository transactionRepository;
     @Autowired private ConfigurationFraisRepository configurationFraisRepository;
-    @Autowired private RetraitRepository auteurRepository;
+    @Autowired private RetraitRepository retraitRepository;
     @Autowired private VendeurService vendeurService;
     @Autowired private ClientService clientService;
     @Autowired private AuditLogService auditLogService;
@@ -266,8 +266,8 @@ public class PaymentService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
             
-            ResponseEntity<Map> response = restTemplate.exchange(
-                URL_CHECK, HttpMethod.POST, entity, Map.class);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                URL_CHECK, HttpMethod.POST, entity, new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
             
             Map<String, Object> responseBody = response.getBody();
             log.info("📊 Réponse status check: {}", responseBody);
@@ -308,7 +308,7 @@ public class PaymentService {
             if (vendeur != null) {
                 BigDecimal montantNet = transaction.getMontantNet() != null ? 
                     transaction.getMontantNet() : transaction.getMontant();
-                auteurService.augmenterSolde(vendeur.getId(), montantNet);
+                vendeurService.augmenterSolde(vendeur.getId(), montantNet);
                 log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
             }
         } catch (Exception e) {
@@ -380,7 +380,7 @@ public class PaymentService {
 
             Vendeur vendeur = qrCode.getVendeur();
             BigDecimal montantNet = transaction.getMontantNet() != null ? transaction.getMontantNet() : transaction.getMontant();
-            auteurService.augmenterSolde(vendeur.getId(), montantNet);
+            vendeurService.augmenterSolde(vendeur.getId(), montantNet);
 
             qrCode.setEstUtilise(true);
             qrCodeRepository.save(qrCode);
@@ -659,7 +659,7 @@ public class PaymentService {
                     if (vendeur != null) {
                         BigDecimal montantNet = transaction.getMontantNet() != null ? 
                             transaction.getMontantNet() : transaction.getMontant();
-                        auteurService.augmenterSolde(vendeur.getId(), montantNet);
+                        vendeurService.augmenterSolde(vendeur.getId(), montantNet);
                         log.info("💰 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
                     }
                 } catch (Exception e) {
@@ -696,7 +696,7 @@ public class PaymentService {
         try {
             Vendeur vendeur = transaction.getQrCode().getVendeur();
             if (vendeur != null) {
-                auteurService.augmenterSolde(vendeur.getId(), transaction.getMontantNet());
+                vendeurService.augmenterSolde(vendeur.getId(), transaction.getMontantNet());
             }
         } catch (Exception e) {
             log.error("Erreur mise à jour solde: {}", e.getMessage());
@@ -820,8 +820,8 @@ public class PaymentService {
                     headers.setContentType(MediaType.APPLICATION_JSON);
                     HttpEntity<Map<String, Object>> entity = new HttpEntity<>(checkBody, headers);
                     
-                    ResponseEntity<Map> response = restTemplate.exchange(
-                            URL_CHECK, HttpMethod.POST, entity, Map.class);
+                    ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                            URL_CHECK, HttpMethod.POST, entity, new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
                     
                     Map<String, Object> responseBody = response.getBody();
                     
@@ -870,7 +870,7 @@ public class PaymentService {
                                     Vendeur vendeur = t.getQrCode() != null ? t.getQrCode().getVendeur() : null;
                                     if (vendeur != null) {
                                         BigDecimal montantNet = t.getMontantNet() != null ? t.getMontantNet() : t.getMontant();
-                                        auteurService.augmenterSolde(vendeur.getId(), montantNet);
+                                        vendeurService.augmenterSolde(vendeur.getId(), montantNet);
                                         log.info("📅 Vendeur {} crédité de {} XAF", vendeur.getId(), montantNet);
                                     }
                                 } catch (Exception e) {
@@ -925,7 +925,7 @@ public class PaymentService {
         
         try {
             // Récupérer tous les retraits avec statut PENDING
-            List<com.fapshi.backend.entity.Retrait> pendingRetraits = auteurRepository.findByStatut("PENDING");
+            List<com.fapshi.backend.entity.Retrait> pendingRetraits = retraitRepository.findByStatut("PENDING");
             
             log.info("📅 Nombre de retraits PENDING: {}", pendingRetraits.size());
             
@@ -949,7 +949,7 @@ public class PaymentService {
                                 retrait.getId(), ageMinutes);
                         retrait.setStatut("FAILED");
                         retrait.setMessage("Retrait expiré - délai max dépassé");
-                        auteurRepository.save(retrait);
+                        retraitRepository.save(retrait);
                         continue;
                     }
                     
@@ -971,8 +971,8 @@ public class PaymentService {
                     headers.setContentType(MediaType.APPLICATION_JSON);
                     HttpEntity<Void> entity = new HttpEntity<>(headers);
                     
-                    ResponseEntity<Map> response = restTemplate.exchange(
-                            checkUrl, HttpMethod.GET, entity, Map.class);
+                    ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                            checkUrl, HttpMethod.GET, entity, new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {});
                     
                     Map<String, Object> responseBody = response.getBody();
                     
@@ -1002,7 +1002,7 @@ public class PaymentService {
                                 }
                             } else if (retrait.getVendeur() != null) {
                                 try {
-                                    auteurService.diminuerSolde(retrait.getVendeur().getId(), retrait.getMontant());
+                                    vendeurService.diminuerSolde(retrait.getVendeur().getId(), retrait.getMontant());
                                     log.info("💰 Vendeur {} débité de {} pour retrait", retrait.getVendeur().getId(), retrait.getMontant());
                                 } catch (Exception e) {
                                     log.error("❌ Erreur débit vendeur: {}", e.getMessage());
@@ -1029,7 +1029,7 @@ public class PaymentService {
                             break;
                     }
                     
-                    auteurRepository.save(retrait);
+                    retraitRepository.save(retrait);
                     log.info("📅 Retrait {} mis à jour vers {}", retrait.getId(), retrait.getStatut());
                     
                 } catch (Exception e) {

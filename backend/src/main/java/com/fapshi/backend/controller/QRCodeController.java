@@ -81,7 +81,8 @@ public class QRCodeController {
                         qr.getDescription(),
                         qr.getDateCreation(),
                         qr.getDateExpiration(),
-                        qr.isEstUtilise()
+                        qr.isEstUtilise(),
+                        qr.getQrPayload()
                 ))
                 .toList();
 

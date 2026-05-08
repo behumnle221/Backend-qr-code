@@ -40,4 +40,7 @@ public interface RetraitRepository extends JpaRepository<Retrait, Long> {
     
     // Récupérer les retraits avec pagination pour client
     Page<Retrait> findByClientIdOrderByDateCreationDesc(Long clientId, Pageable pageable);
+    
+    // Rechercher un retrait par sa référence Aangaraa
+    Optional<Retrait> findByReferenceId(String referenceId);
 }

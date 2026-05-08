@@ -408,4 +408,28 @@ public class ClientController {
                     .body(new ApiResponse<Object>(false, "Erreur sync: " + e.getMessage(), null));
         }
     }
+    /**
+     * Vérifier le statut d'un retrait spécifique
+     * Endpoint : GET /api/client/retraits/{transactionId}/statut?operateur=Orange_Cameroon
+     */
+    @GetMapping("/retraits/{transactionId}/statut")
+    public ResponseEntity<ApiResponse<Object>> getRetraitStatut(
+            @PathVariable String transactionId,
+            @RequestParam String operateur) {
+        try {
+            if (operateur == null || (!operateur.equals("Orange_Cameroon") && !operateur.equals("MTN_Cameroon"))) {
+                return ResponseEntity.badRequest()
+                        .body(new ApiResponse<>(false, "Opérateur requis. Utilisez: Orange_Cameroon ou MTN_Cameroon", null));
+            }
+            
+            Map<String, Object> status = aangaraaWithdrawalService.checkWithdrawalStatus(transactionId, operateur);
+            
+            return ResponseEntity.ok()
+                    .body(new ApiResponse<>(status, "Statut récupéré"));
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "Erreur: " + e.getMessage(), null));
+        }
+    }
 }

@@ -422,10 +422,39 @@ public class ClientController {
                         .body(new ApiResponse<>(false, "Opérateur requis. Utilisez: Orange_Cameroon ou MTN_Cameroon", null));
             }
             
-            Map<String, Object> status = aangaraaWithdrawalService.checkWithdrawalStatus(transactionId, operateur);
+            Map<String, Object> statusResult = aangaraaWithdrawalService.checkWithdrawalStatus(transactionId, operateur);
             
+            // Mise à jour de la DB si le statut a changé vers un état final
+            try {
+                String newStatus = statusResult.get("status") != null ? statusResult.get("status").toString() : null;
+                if (newStatus != null) {
+                    var retraitOpt = retraitRepository.findByReferenceId(transactionId);
+                    if (retraitOpt.isPresent()) {
+                        com.fapshi.backend.entity.Retrait retrait = retraitOpt.get();
+                        if ("PENDING".equals(retrait.getStatut())) {
+                            if ("SUCCESSFUL".equalsIgnoreCase(newStatus) || "SUCCESS".equalsIgnoreCase(newStatus)) {
+                                retrait.setStatut("SUCCESS");
+                                retrait.setMessage("Validé via polling status");
+                                retrait.setDateAttempt(LocalDateTime.now());
+                                retraitRepository.save(retrait);
+                                // Débiter le solde si c'est un succès
+                                clientService.debiterSolde(retrait.getClient().getId(), retrait.getMontant());
+                                log.info("✅ Retrait {} validé et débité via polling", transactionId);
+                            } else if ("FAILED".equalsIgnoreCase(newStatus) || "ERROR".equalsIgnoreCase(newStatus)) {
+                                retrait.setStatut("FAILED");
+                                retrait.setDateAttempt(LocalDateTime.now());
+                                retraitRepository.save(retrait);
+                                log.warn("❌ Retrait {} marqué FAILED via polling", transactionId);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("⚠️ Erreur lors de la mise à jour auto du retrait {}: {}", transactionId, e.getMessage());
+            }
+
             return ResponseEntity.ok()
-                    .body(new ApiResponse<>(status, "Statut récupéré"));
+                    .body(new ApiResponse<>(statusResult, "Statut récupéré"));
             
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

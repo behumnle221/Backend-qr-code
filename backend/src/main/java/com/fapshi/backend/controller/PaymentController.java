@@ -47,6 +47,7 @@ public class PaymentController {
         // R\u00e9cup\u00e9rer le client depuis l'authentification (JWT)
         String username = authentication.getName();
         Client client = clientService.findByEmail(username)
+                .or(() -> clientService.findByTelephone(username))
                 .orElseThrow(() -> new RuntimeException("Client non trouv\u00e9"));
         
         // Appel au service avec l'ID du client

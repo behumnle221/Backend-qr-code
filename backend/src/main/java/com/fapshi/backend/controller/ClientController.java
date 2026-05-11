@@ -64,6 +64,7 @@ public class ClientController {
 
         String username = authentication.getName();
         Client client = clientService.findByEmail(username)
+                .or(() -> clientService.findByTelephone(username))
                 .orElseThrow(() -> new RuntimeException("Client non trouvé"));
         Long clientId = client.getId();
 
@@ -96,6 +97,7 @@ public class ClientController {
         
         // Récupérer le client par son email
         Client client = clientService.findByEmail(username)
+                .or(() -> clientService.findByTelephone(username))
                 .orElseThrow(() -> new RuntimeException("Client non trouvé"));
         
         Long clientId = client.getId();
@@ -134,6 +136,7 @@ public class ClientController {
         try {
             String username = authentication.getName();
             Client client = clientService.findByEmail(username)
+                    .or(() -> clientService.findByTelephone(username))
                     .orElseThrow(() -> new RuntimeException("Client non trouvé"));
             Long clientId = client.getId();
             
@@ -323,6 +326,7 @@ public class ClientController {
     private Long getClientIdFromAuth(Authentication authentication) {
         String username = authentication.getName();
         return clientService.findByEmail(username)
+                .or(() -> clientService.findByTelephone(username))
                 .orElseThrow(() -> new RuntimeException("Client non trouvé"))
                 .getId();
     }

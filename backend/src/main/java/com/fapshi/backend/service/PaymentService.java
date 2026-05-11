@@ -687,7 +687,8 @@ public class PaymentService {
 
     private void calculateCommissionAndNetAmount(Transaction transaction) {
         ConfigurationFrais config = configurationFraisRepository.findById(1L).orElse(new ConfigurationFrais());
-        BigDecimal commission = transaction.getMontant().multiply(config.getCommissionRate()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal rate = config.getCommissionRate() != null ? config.getCommissionRate() : BigDecimal.ZERO;
+        BigDecimal commission = transaction.getMontant().multiply(rate).setScale(2, RoundingMode.HALF_UP);
         transaction.setCommissionAppliquee(commission);
         transaction.setMontantNet(transaction.getMontant().subtract(commission));
     }

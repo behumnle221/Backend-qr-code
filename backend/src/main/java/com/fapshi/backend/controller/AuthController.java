@@ -218,4 +218,17 @@ public class AuthController {
                                 .body(new ApiResponse<>(null, e.getMessage()));  // ← Message clair au client
                 }
                 }
-}
+
+    // ───────────────────────────────────────────────
+    // KEEP-ALIVE / PING (utilisé par le frontend pour maintenir la session active)
+    // ───────────────────────────────────────────────
+    @Operation(summary = "Vérifier le statut de la session", description = "Endpoint léger pour maintenir la connexion active")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<String>> me(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse<>("Non authentifié"));
+        }
+        return ResponseEntity.ok(new ApiResponse<>("ok", "Session active"));
+    }
+}

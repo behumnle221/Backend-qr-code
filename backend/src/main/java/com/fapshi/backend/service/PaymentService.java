@@ -806,9 +806,9 @@ public class PaymentService {
                         continue;
                     }
                     
-                    // 3️⃣ ATTENDRE AU MOINS 5 MINUTES AVANT DE VÉRIFIER VIA API
-                    if (ageMinutes < 5) {
-                        log.info("📅 Transaction {} encore récente ({} min < 5 min), ignorée pour l'instant", t.getId(), ageMinutes);
+                    // 3️⃣ ATTENDRE AU MOINS 1 MINUTE AVANT DE VÉRIFIER VIA API
+                    if (ageMinutes < 1) {
+                        log.info("📅 Transaction {} encore récente ({} min < 1 min), ignorée pour l'instant", t.getId(), ageMinutes);
                         continue;
                     }
                     

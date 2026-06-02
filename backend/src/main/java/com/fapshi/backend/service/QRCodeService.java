@@ -32,7 +32,7 @@ public class QRCodeService {
      * Génère un QR Code riche avec la liste des produits.
      * La date d'expiration est calculée côté serveur (5 minutes).
      */
-    public QrCodeResponse generateQRCode(GenerateQrRequest request, Vendeur vendeur) {
+    public QrCodeResponse generateQRCode(GenerateQrRequest request, Vendeur vendeur, com.fapshi.backend.entity.Caissier caissier) {
         if (request.getProducts() == null || request.getProducts().isEmpty()) {
             throw new RuntimeException("Au moins un produit est requis");
         }
@@ -48,6 +48,9 @@ public class QRCodeService {
         // Création de l'entité QRCode
         QRCode qrCode = new QRCode();
         qrCode.setVendeur(vendeur);
+        if (caissier != null) {
+            qrCode.setCaissier(caissier);
+        }
         qrCode.setMontant(total);
         qrCode.setDescription(request.getDescription() != null ? request.getDescription() : "Panier client");
         qrCode.setDateExpiration(dateExpiration); // ✅ Expiration fiable côté serveur

@@ -32,6 +32,10 @@ public class QRCode {
     @JoinColumn(name = "vendeur_id")
     private Vendeur vendeur;
 
+    @ManyToOne
+    @JoinColumn(name = "caissier_id")
+    private Caissier caissier;
+
     // Getters et Setters manuels
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -62,6 +66,9 @@ public class QRCode {
 
     public Vendeur getVendeur() { return vendeur; }
     public void setVendeur(Vendeur vendeur) { this.vendeur = vendeur; }
+
+    public Caissier getCaissier() { return caissier; }
+    public void setCaissier(Caissier caissier) { this.caissier = caissier; }
 
     // jsonPayload est un champ calculé, pas besoin de setter
     public String getQrPayload() { return qrPayload; }

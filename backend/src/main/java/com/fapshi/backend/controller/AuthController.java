@@ -171,7 +171,8 @@ public class AuthController {
 
             // Détermination du rôle
             String role = user instanceof Client ? "CLIENT" :
-                          user instanceof Vendeur ? "VENDEUR" : "ADMIN";
+                          user instanceof Vendeur ? "VENDEUR" : 
+                          user instanceof com.fapshi.backend.entity.Caissier ? "CAISSIER" : "ADMIN";
 
             // Génération du token JWT
             String jwt = jwtUtil.generateToken(

@@ -30,6 +30,10 @@ public class Transaction {
     @JoinColumn(name = "qr_code_id", nullable = true)
     private QRCode qrCode;
 
+    @ManyToOne
+    @JoinColumn(name = "caissier_id", nullable = true)
+    private Caissier caissier;
+
     private String telephoneClient;
 
     @Column(nullable = false)
@@ -90,6 +94,8 @@ public class Transaction {
     public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
     public void setTransactionType(TypeTransaction transactionType) { this.transactionType = transactionType; }
     public void setQrCode(QRCode qrCode) { this.qrCode = qrCode; }
+    public Caissier getCaissier() { return caissier; }
+    public void setCaissier(Caissier caissier) { this.caissier = caissier; }
     public void setTelephoneClient(String telephoneClient) { this.telephoneClient = telephoneClient; }
     public void setMontant(BigDecimal montant) { this.montant = montant; }
     public void setStatut(String statut) { this.statut = statut; }

@@ -48,11 +48,17 @@ public class SecurityConfig {
     // TEMPORAIRE: Tester l'initiation de paiement sans restriction
     .requestMatchers("/api/payments/initiate").permitAll()
     
-    // QR generation : vendeurs seulement
-    .requestMatchers("/api/qr/generate").hasRole("VENDEUR")
+    // QR generation : vendeurs et caissiers
+    .requestMatchers("/api/qr/generate").hasAnyRole("VENDEUR", "CAISSIER")
     
-    // Solde vendeur : vendeurs seulement
+    // Retraits : vendeurs seulement (TRÈS IMPORTANT POUR LA SÉCURITÉ)
+    .requestMatchers("/api/retrait/**").hasRole("VENDEUR")
+    
+    // Solde vendeur et gestion des caissiers : vendeurs seulement
     .requestMatchers("/api/vendeur/**").hasRole("VENDEUR")
+    
+    // API Caisse spécifique : caissiers seulement
+    .requestMatchers("/api/caisse/**").hasRole("CAISSIER")
     
     // Autres endpoints paiement : authentifiés
     .requestMatchers("/api/payments/**").authenticated()

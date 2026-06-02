@@ -1,0 +1,498 @@
+\documentclass[aspectratio=169,9pt,demo]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage{mathtools}
+\usepackage{multicol}
+\usepackage{mathptmx}
+\usepackage{multirow}
+\usepackage{pseudocode}
+\usepackage{caption}
+\usepackage{subcaption} 
+\usepackage[table]{xcolor}
+\usepackage{colortbl}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
+\usepackage{setspace} 
+
+\usetheme{CambridgeUS}
+\setbeamertemplate{headline}{%
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=0.55\paperwidth,ht=0.3cm,dp=0.2cm,center]{section in head/foot}
+      \textbf{\insertsection} 
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=0.45\paperwidth,ht=0.3cm,dp=0.2cm,center]{subsection in head/foot}
+      \textbf{\insertsubsection} 
+    \end{beamercolorbox}
+  }%
+}
+
+\usecolortheme{orchid}
+
+\definecolor{myNewColorA}{RGB}{39,52,139}
+\definecolor{myNewcolorA}{RGB}{226,182,0}
+
+\setbeamercolor{block title}{bg=myNewColorA,fg=white}
+\setbeamercolor{block body}{bg=myNewColorA!20,fg=black}
+\setbeamercolor{block title alerted}{bg=white, fg=myNewColorA}
+\setbeamercolor{block body alerted}{bg=black!20, fg=white}
+
+\setbeamercolor*{block title example}{bg=myNewColorA, fg = white}
+\setbeamercolor*{block body example}{bg=myNewColorA!20, fg = black}
+\usebeamercolor[myNewColorA]{block title alerted}
+\setbeamercolor*{palette primary}{bg=myNewcolorA, fg = black}
+\setbeamercolor*{palette secondary}{bg=myNewcolorA, fg = black}
+\setbeamercolor*{palette tertiary}{bg=myNewcolorA, fg = white}
+\setbeamercolor*{titlelike}{fg=myNewColorA}
+\setbeamercolor*{title}{bg=myNewColorA, fg = white}
+\setbeamercolor*{item}{fg=myNewColorA}
+\setbeamercolor*{caption name}{fg=myNewcolorA}
+\usefonttheme{professionalfonts}
+\usepackage{natbib}
+\usepackage{hyperref}
+\setbeamersize{text margin left = 2mm, text margin right = 2mm}
+
+%------------------------------------------------------------
+\titlegraphic{\includegraphics[height=1.5cm]{ressources/images/logo.jpg}} 
+
+\setbeamerfont{title}{size=\large}
+\setbeamerfont{author}{size=\normalsize}
+\setbeamerfont{date}{size=\small}
+\setbeamerfont{institute}{size=\small}
+
+\title[Mémoire de Licence Professionnelle]{PAYQR - APPLICATION DE PAIEMENT QR-CODE}
+
+% Configuration pour Beamer
+\author[NJANKO, ETOA, ZIEM, NKONGMENOCK \& MARTIAL]{%
+  Présenté par : \\
+  ZIEM DAVID DE JESUIS \and NKONGMENOCK LOIC PARFAIT \and MARTIAL JEANNOT MAA
+}
+
+\institute[UY1]{%
+  Université de Yaoundé I \\
+  \vspace{0.2cm}
+  Faculté des Sciences, Département d'informatique
+}
+\date[\textcolor{white}{\today}]{Année Académique 2025-2026}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}
+\frametitle{Plan}
+\begin{multicols}{2}
+    \begin{onehalfspace}
+        \tableofcontents
+    \end{onehalfspace}
+\end{multicols}
+\end{frame}
+
+%------------------------------------------------------------
+\section{\Large{Introduction}}
+\subsection{\small Contexte, Problématique, Solution, avantages}
+
+\begin{frame}{Contexte, Problématique, Solution et Avantages}
+\begin{block}{\textbf{Contexte général}}
+Au Cameroun, les services de paiement mobile (Orange Money, MTN Mobile Money) sont omniprésents mais manquent d'interopérabilité et de solutions adaptées aux commerçants. Les clients rencontrent des difficultés pour payer à la caisse rapidement et sans espèces.
+\end{block}
+
+\begin{block}{\textbf{Problématique}}
+\begin{itemize}
+    \item Processus de paiement lent et inefficace à la caisse
+    \item Dépendance aux terminaux physiques de paiement
+    \item Manque de solutions digitales intégrées pour les commerçants
+    \item Frais de transaction élevés pour les petits commerces
+\end{itemize}
+\end{block}
+
+\begin{block}{\textbf{Solution proposée : PayQr}}
+Développement d'une plateforme complète permettant :
+\begin{itemize}
+    \item Génération de QR codes par les commerçants
+    \item Paiement instantané par scan de QR code
+    \item Gestion de portefeuille virtuel client
+    \item Intégration avec les passerelles Mobile Money via Aangaraa-Pay
+\end{itemize}
+\end{block}
+
+\begin{block}{\textbf{Avantages clés}}
+\begin{itemize}
+    \item Paiement à la caisse ultra-rapide via QR code
+    \item Réduction des files d'attente en magasin
+    \item Solution accessible et économique pour les commerçants
+    \item Traçabilité complète des transactions
+\end{itemize}
+\end{block}
+\end{frame}
+
+\section{\Large Structure de stage}
+\subsection{\small ARITeD}
+
+\begin{frame}{Cadre professionnel et missions}
+\begin{block}{Cadre professionnel}
+    \begin{itemize}
+      \item \textbf{Entreprise} : ARITeD (Association de Recherche et d'Innovation en Technologie pour le Développement)
+      \item \textbf{Localisation} : Chapelle Obili, Yaoundé (près de l'UY1)
+      \item \textbf{Période} : Janvier 2026 - Mai 2026
+    \end{itemize}
+\end{block}
+
+\begin{block}{Missions d'ARITeD}
+    \begin{itemize}
+      \item Conception de logiciels sur mesure (web, mobiles) pour les entreprises
+      \item Intégration de technologies favorisant la transformation numérique
+      \item Incubation et accompagnement des jeunes étudiants porteurs de projets
+    \end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}{Déroulement du projet}
+  \begin{block}{\Large Résumé du déroulement du projet}
+Le projet PayQr s'est déroulé de janvier à mai 2026 en partenariat avec ARITeD. Après une phase d'analyse des besoins des commerçants et des systèmes de paiement existants, nous avons conçu une architecture full-stack adaptée. Le développement, lancé en mars, a intégré les fonctionnalités essentielles (authentification JWT, génération QR, paiement, intégration Aangaraa) selon une méthode itérative. En mai, le projet a été finalisé avec les phases de test et de déploiement.
+\end{block}
+\end{frame}
+
+\section{\Large Architecture technique}
+\subsection{\large Architecture globale}
+
+\begin{frame}{Architecture de la solution PayQr}
+\begin{block}{\normalsize Architecture full-stack}
+\textbf{PayQr} repose sur une architecture moderne et modulaire :
+\begin{itemize}
+    \item \textbf{Backend} : Spring Boot (Java) avec JWT pour l'authentification
+    \item \textbf{Base de données} : MySQL 8.0 pour les transactions et utilisateurs
+    \item \textbf{API externe} : Intégration Aangaraa-Pay pour Mobile Money
+    \item \textbf{Frontend} : React JS pour le tableau de bord vendeur
+    \item \textbf{Mobile} : Flutter pour l'application client
+\end{itemize}
+\end{block}
+
+\begin{block}{\normalsize Entités principales}
+\begin{itemize}
+    \item \textbf{User} : Entité abstraite avec email, téléphone, mot de passe
+    \item \textbf{Client} : Solde virtuel, historique transactions
+    \item \textbf{Vendeur} : Nom commerce, adresse, solde virtuel caisse
+    \item \textbf{QRCode} : Code unique, montant, lien au vendeur
+    \item \textbf{Transaction} : Montant, statut, commission, type opération
+\end{itemize}
+\end{block}
+\end{frame}
+
+\subsection{\large API Backend}
+\begin{frame}{Endpoints principaux - Authentification}
+\begin{block}{Authentification JWT}
+\begin{itemize}
+    \item \texttt{POST /api/auth/register/client} - Inscription client
+    \item \texttt{POST /api/auth/register/vendeur} - Inscription vendeur  
+    \item \texttt{POST /api/auth/login} - Connexion avec token JWT
+    \item \texttt{POST /api/auth/forgot-password} - Demande reset mot de passe
+    \item \texttt{POST /api/auth/reset-password} - Réinitialisation avec code
+\end{itemize}
+\end{block}
+
+\begin{block}{Gestion des comptes}
+\begin{itemize}
+    \item \texttt{GET /api/client/me} - Profil client authentifié
+    \item \texttt{GET /api/client/solde} - Solde virtuel du client
+    \item \texttt{GET /api/vendeur/me} - Profil vendeur authentifié
+    \item \texttt{GET /api/vendeur/solde} - Solde caisse du vendeur
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}{Endpoints principaux - Paiement QR}
+\begin{block}{Operations QR Code}
+\begin{itemize}
+    \item \texttt{POST /api/qrcode/generate} - Génération QR par le vendeur
+    \item \texttt{POST /api/payments/initiate} - Initialisation paiement externe
+    \item \texttt{POST /api/payments/virtual} - Paiement via solde interne
+    \item \texttt{GET /api/payments/status/\{id\}} - Vérification statut transaction
+    \item \texttt{POST /api/webhook/aangaraa} - Réception notifications webhook
+\end{itemize}
+\end{block}
+
+\begin{block}{Retraits et solde}
+\begin{itemize}
+    \item \texttt{POST /api/retrait} - Demande de retrait vendeur
+    \item \texttt{GET /api/transactions} - Historique des transactions
+    \item \texttt{GET /api/audit-log} - Journal d'audit complet
+\end{itemize}
+\end{block}
+\end{frame}
+
+\section{\Large Fonctionnalités détaillées}
+\subsection{\large Parcours utilisateur}
+
+\begin{frame}{1. Création de compte et authentification}
+\begin{block}{Inscription}
+\begin{itemize}
+    \item Client : nom, email, téléphone, mot de passe
+    \item Vendeur : nom, email, téléphone, mot de passe, nom commerce, adresse
+    \item Validation : email/téléphone unique, mot de passe hashé
+\end{itemize}
+\end{block}
+
+\begin{block}{Authentification}
+\begin{itemize}
+    \item Login avec email ou téléphone + mot de passe
+    \item Génération de token JWT valide 24h
+    \item Rôle déterminé (CLIENT, VENDEUR, ADMIN)
+    \item Endpoint \texttt{/api/auth/me} pour vérifier session active
+\end{itemize}
+\end{block}
+
+\begin{block}{Mot de passe oublié}
+\begin{itemize}
+    \item Envoi d'un code OTP par email
+    \item Validation du code et réinitialisation sécurisée
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}{2. Rechargement du compte virtuel}
+\begin{block}{Processus de recharge}
+\begin{itemize}
+    \item Client saisit montant (minimum 10 XAF) et opérateur (Orange/MTN)
+    \item Appel API Aangaraa-Pay pour paiement Mobile Money
+    \item Retour avec payToken pour validation
+    \item Webhook automatique pour crédit du solde une fois paiement validé
+\end{itemize}
+\end{block}
+
+\begin{block}{Endpoints concernés}
+\begin{itemize}
+    \item \texttt{POST /api/payments/rechargement} (via PaymentService)
+    \item \texttt{POST /api/webhook/aangaraa} - Traitement webhook
+    \item \texttt{GET /api/client/solde} - Consultation solde
+\end{itemize}
+\end{block}
+
+\begin{block}{Sécurité}
+\begin{itemize}
+    \item Transaction créée avec statut PENDING
+    \item Solde crédité uniquement après confirmation webhook
+    \item Scheduler de secours vérifie les transactions PENDING
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}{3. Génération et paiement QR Code}
+\begin{block}{Par le vendeur}
+\begin{itemize}
+    \item Génération d'un QR code avec montant et description
+    \item QR code lié au vendeur (compte caisse)
+    \item Expiration configurable (30 minutes par défaut)
+\end{itemize}
+\end{block}
+
+\begin{block}{Par le client}
+\begin{itemize}
+    \item Scan du QR code avec l'application mobile
+    \item Option 1 : Paiement externe (Mobile Money via Aangaraa)
+    \item Option 2 : Paiement interne (solde virtuel)
+    \item Validation instantanée et confirmation
+\end{itemize}
+\end{block}
+
+\begin{block}{Traitement backend}
+\begin{itemize}
+    \item Vérification expiration et statut utilisation
+    \item Calcul commission (configurable)
+    \item Mise à jour solde vendeur automatique
+    \item Statut QR changé à "utilisé" après paiement
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}{4. Retrait des fonds}
+\begin{block}{Processus de retrait}
+\begin{itemize}
+    \item Vendeur demande retrait vers son Mobile Money
+    \item Choix opérateur (Orange Cameroon / MTN Cameroon)
+    \item Appel API Aangaraa pour traitement du retrait
+    \item Webhook de confirmation et débit automatique du solde
+\end{itemize}
+\end{block}
+
+\begin{block}{Endpoints concernés}
+\begin{itemize}
+    \item \texttt{POST /api/retrait} - Création demande retrait
+    \item \texttt{GET /api/retrait/history} - Historique retraits
+    \item Scheduler \texttt{checkPendingRetraits()} - Vérification automatique
+\end{itemize}
+\end{block}
+
+\begin{block}{Gestion des erreurs}
+\begin{itemize}
+    \item Retraits expirés (> 15 min) marqués FAILED
+    \item Retry automatique via scheduler 30 secondes
+    \item Notification des erreurs en log
+\end{itemize}
+\end{block}
+\end{frame}
+
+\section{\Large Implémentation détaillée}
+\subsection{\large Services clés}
+
+\begin{frame}{PaymentService - Cœur métier}
+\begin{block}{Fonctions principales}
+\begin{itemize}
+    \item \textbf{initierRechargement()} : Crée transaction RECHARGEMENT et appelle Aangaraa
+    \item \textbf{initiatePayment()} : Gère paiements QR externes avec commission
+    \item \textbf{initiateVirtualPayment()} : Paiement interne solde client $\rightarrow$ vendeur
+    \item \textbf{checkPaymentStatus()} : Vérification statut auprès d'Aangaraa
+    \item \textbf{processWebhook()} : Traitement notifications automatiques
+\end{itemize}
+\end{block}
+
+\begin{block}{Schedulers automatiques}
+\begin{itemize}
+    \item \texttt{checkPendingTransactions()} : Toutes les 30s, vérifie PENDING
+    \item \texttt{checkPendingRetraits()} : Toutes les 30s, suit les retraits
+    \item Expiration automatique après 15 minutes d'inactivité
+    \item Fallback si webhook non reçu
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}{Sécurité et authentification}
+\begin{block}{JwtUtil - Génération des tokens}
+\begin{itemize}
+    \item Algorithm HS256 avec secret partagé
+    \item Claims : username, userId, role, expiration
+    \item Token signé et renvoyé au client après login
+\end{itemize}
+\end{block}
+
+\begin{block}{JwtAuthenticationFilter}
+\begin{itemize}
+    \item Intercepte chaque requête HTTP
+    \item Extrait et valide le token JWT
+    \item Charge l'utilisateur dans le contexte Spring Security
+    \item Endpoints publics : /api/auth/*, /api/webhook/*
+    \item Endpoints protégés : nécessitent authentification
+\end{itemize}
+\end{block}
+
+\begin{block}{PasswordEncoderUtil}
+\begin{itemize}
+    \item Hashage BCrypt des mots de passe
+    \item Validation lors de la connexion
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}{Gestion des transactions}
+\begin{block}{Entité Transaction}
+\begin{itemize}
+    \item Statuts : PENDING, SUCCESSFUL, FAILED, CANCELLED
+    \item Types : RECHARGEMENT, PAYMENT\_MARCHAND, TRANSFERT\_VIRTUEL
+    \item Champs : montant, commission, montantNet, payToken, referenceOperateur
+    \item Liens : client, vendeur (via QR), QRCode
+\end{itemize}
+\end{block}
+
+\begin{block}{Calcul des commissions}
+\begin{itemize}
+    \item Configuration via \texttt{ConfigurationFrais} (taux configurable)
+    \item Commission déduite du montant brut
+    \item Le vendeur reçoit le montant net
+    \item Exemple : 1000 XAF avec 2\% $\rightarrow$ 980 XAF au vendeur
+\end{itemize}
+\end{block}
+\end{frame}
+
+\section{\Large Tests \& Résultats}
+\subsection{\large Résultats techniques}
+
+\begin{frame}{Résultats techniques observés}
+\begin{block}{Temps moyen par fonctionnalité}
+\begin{footnotesize}
+\begin{tabular}{|p{6cm}|p{3cm}|}
+\hline
+\rowcolor{myNewColorA!40} \textbf{Fonctionnalité} & \textbf{Temps moyen (ms)} \\
+\hline
+Authentification et génération de token JWT & 540 \\
+Rechargement compte virtuel (Mobile Money) & 850 \\
+Paiement QR externe (Aangaraa + webhook) & 1200 \\
+Paiement QR interne (solde virtuel) & 670 \\
+Génération QR Code & 200 \\
+Retrait vers Mobile Money & 900 \\
+Consultation du solde & 250 \\
+Chargement historique transactions & 400 \\
+\hline
+\end{tabular}
+\end{footnotesize}
+\end{block}
+
+\begin{block}{Taux de réussite}
+94 opérations réussies sur 100 simulées : \textbf{94\%} de succès \\
+\textit{Causes d'échec : coupures réseau, erreurs côté Aangaraa.}
+\end{block}
+\end{frame}
+
+\begin{frame}{Points forts et limites}
+\begin{block}{Points forts observés}
+\begin{itemize}
+    \item Architecture modulaire et extensible
+    \item Intégration Aangaraa-Pay robuste avec fallbacks
+    \item Paiement instantané avec solde virtuel
+    \item Sécurité JWT renforcée
+    \item Webhooks automatiques avec scheduler de secours
+\end{itemize}
+\end{block}
+
+\begin{block}{Limites identifiées}
+\begin{itemize}
+    \item Dépendance à l'API Aangaraa pour Mobile Money
+    \item Pas de support iOS natif (Flutter en cours)
+    \item Gestion des erreurs réseau à améliorer
+    \item Nécessite validation réglementaire pour production
+\end{itemize}
+\end{block}
+\end{frame}
+
+\section{\Large Conclusion}
+\begin{frame}
+\begin{onehalfspace}
+\begin{block}{\Large Bilan général}
+Les solutions de paiement mobile décentralisées offrent une alternative innovante aux systèmes traditionnels. \textbf{PayQr} répond à un besoin local concret : offrir aux commerçants une interface de caisse unifiée, fluide et sécurisée.
+
+\vspace{0.2cm}
+Notre solution, reposant sur Spring Boot, MySQL et l'intégration Aangaraa-Pay, permet recharges, paiements par QR code et retraits Mobile Money de façon fluide et simple.
+\end{block}
+
+\begin{block}{\Large Perspectives}
+\begin{itemize}
+    \item Déploiement en phase pilote avec commerçants locaux
+    \item Intégration de nouvelles passerelles de paiement
+    \item Développement du portail web vendeur React complet
+    \item Obtention des autorisations nécessaires (MINMAP, ART)
+    \item Publication sur Play Store et App Store
+\end{itemize}
+\end{block}
+\end{onehalfspace}
+\end{frame}
+
+\section{\large Démonstration}
+\begin{frame}
+\begin{center}
+\includegraphics[width=0.8\textwidth]{ressources/images/demo.png}
+\captionof{figure}{Interface de paiement QR Code - PayQr}
+\end{center}
+\end{frame}
+
+\section*{\large Remerciements}   
+\begin{frame}
+\textcolor{myNewColorA}{\Huge{\centerline{Merci pour votre aimable attention!}}}
+
+\vspace{1cm}
+\begin{center}
+\textbf{Questions \& Réponses}
+\end{center}
+\end{frame}
+
+\end{document}

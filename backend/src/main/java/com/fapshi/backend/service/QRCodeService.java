@@ -109,6 +109,10 @@ public class QRCodeService {
         return qrCodeRepository.findByVendeurIdOrderByDateCreationDesc(vendeurId);
     }
 
+    public List<QRCode> findByCaissierId(Long caissierId) {
+        return qrCodeRepository.findByCaissierIdOrderByDateCreationDesc(caissierId);
+    }
+
     public List<QRCode> findNonUtilises() {
         return qrCodeRepository.findByEstUtiliseFalse();
     }

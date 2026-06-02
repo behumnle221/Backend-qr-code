@@ -20,5 +20,8 @@ public interface QRCodeRepository extends JpaRepository<QRCode, Long> {
 
     // Tous les QR codes d'un vendeur, triés par date de création décroissante 
     List<QRCode> findByVendeurIdOrderByDateCreationDesc(Long vendeurId);
+
+    // Tous les QR codes d'un caissier, triés par date de création décroissante
+    List<QRCode> findByCaissierIdOrderByDateCreationDesc(Long caissierId);
 }
    

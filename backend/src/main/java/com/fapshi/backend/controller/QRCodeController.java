@@ -91,16 +91,14 @@ public class QRCodeController {
                 .or(() -> userRepository.findByTelephone(username))
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé."));
 
-        Long vendeurId;
+        List<QRCode> qrCodes;
         if (user instanceof Vendeur) {
-            vendeurId = user.getId();
+            qrCodes = qrCodeService.findByVendeurId(user.getId());
         } else if (user instanceof com.fapshi.backend.entity.Caissier) {
-            vendeurId = ((com.fapshi.backend.entity.Caissier) user).getVendeur().getId();
+            qrCodes = qrCodeService.findByCaissierId(user.getId());
         } else {
             throw new RuntimeException("Rôle non autorisé.");
         }
-
-        List<QRCode> qrCodes = qrCodeService.findByVendeurId(vendeurId);
 
         List<QrCodeSummaryResponse> responseList = qrCodes.stream()
                 .map(qr -> new QrCodeSummaryResponse(

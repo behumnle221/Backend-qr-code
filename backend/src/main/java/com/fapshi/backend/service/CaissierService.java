@@ -8,7 +8,9 @@ import com.fapshi.backend.repository.CaissierRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,6 +23,20 @@ public class CaissierService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    private CaissierResponse toResponse(Caissier c) {
+        BigDecimal totalVentes = caissierRepository.sumVentesByCaissierId(c.getId());
+        int nombreQr = caissierRepository.countQrByCaissierId(c.getId());
+        return new CaissierResponse(
+                c.getId(),
+                c.getNomCaisse(),
+                c.getEmail(),
+                c.isActif(),
+                c.getDateInscription(),
+                totalVentes,
+                nombreQr
+        );
+    }
+
     public CaissierResponse creerCaissier(CaissierRequest request, Vendeur vendeur) {
         if (caissierRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Cet email est déjà utilisé par un autre compte.");
@@ -30,24 +46,17 @@ public class CaissierService {
         caissier.setNomCaisse(request.getNomCaisse());
         caissier.setEmail(request.getEmail());
         caissier.setPassword(passwordEncoder.encode(request.getPassword()));
-        caissier.setNom(request.getNomCaisse()); // Utilise le nom de caisse comme nom d'utilisateur
+        caissier.setNom(request.getNomCaisse());
         caissier.setVendeur(vendeur);
         caissier.setActif(true);
 
         Caissier saved = caissierRepository.save(caissier);
-        
-        return new CaissierResponse(
-                saved.getId(), 
-                saved.getNomCaisse(), 
-                saved.getEmail(), 
-                saved.isActif(), 
-                saved.getDateInscription()
-        );
+        return toResponse(saved);
     }
 
     public List<CaissierResponse> listerCaissiers(Long vendeurId) {
         return caissierRepository.findByVendeurId(vendeurId).stream()
-                .map(c -> new CaissierResponse(c.getId(), c.getNomCaisse(), c.getEmail(), c.isActif(), c.getDateInscription()))
+                .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
@@ -60,14 +69,18 @@ public class CaissierService {
         }
 
         caissier.setActif(!caissier.isActif());
-        Caissier updated = caissierRepository.save(caissier);
+        return toResponse(caissierRepository.save(caissier));
+    }
 
-        return new CaissierResponse(
-                updated.getId(), 
-                updated.getNomCaisse(), 
-                updated.getEmail(), 
-                updated.isActif(), 
-                updated.getDateInscription()
-        );
+    @Transactional
+    public void supprimerCaissier(Long caissierId, Long vendeurId) {
+        Caissier caissier = caissierRepository.findById(caissierId)
+                .orElseThrow(() -> new RuntimeException("Caissier non trouvé."));
+
+        if (!caissier.getVendeur().getId().equals(vendeurId)) {
+            throw new RuntimeException("Vous n'êtes pas autorisé à supprimer cette caisse.");
+        }
+
+        caissierRepository.delete(caissier);
     }
 }

@@ -66,4 +66,15 @@ public class CaissierController {
             return ResponseEntity.badRequest().body(new ApiResponse<>(null, e.getMessage()));
         }
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<String>> supprimerCaissier(@PathVariable Long id) {
+        try {
+            Vendeur vendeur = getAuthenticatedVendeur();
+            caissierService.supprimerCaissier(id, vendeur.getId());
+            return ResponseEntity.ok(new ApiResponse<>("OK", "Caisse supprimée définitivement."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(null, e.getMessage()));
+        }
+    }
 }

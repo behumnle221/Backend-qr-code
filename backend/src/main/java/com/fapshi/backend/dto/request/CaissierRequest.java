@@ -2,16 +2,22 @@ package com.fapshi.backend.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public class CaissierRequest {
-    @NotBlank(message = "Le nom de la caisse est obligatoire")
+
+    @NotBlank(message = "Le nom de la caisse est obligatoire.")
     private String nomCaisse;
 
-    @NotBlank(message = "L'email est obligatoire")
-    @Email(message = "Format d'email invalide")
+    @NotBlank(message = "L'email est obligatoire.")
+    @Email(message = "Format d'email invalide.")
     private String email;
 
-    @NotBlank(message = "Le mot de passe est obligatoire")
+    @NotBlank(message = "Le mot de passe est obligatoire.")
+    @Size(min = 8, message = "Le mot de passe doit contenir au moins 8 caractères.")
+    @Pattern(regexp = "^(?=.*[A-Z])(?=.*[0-9]).+$",
+             message = "Le mot de passe doit contenir au moins une majuscule et un chiffre.")
     private String password;
 
     public String getNomCaisse() { return nomCaisse; }

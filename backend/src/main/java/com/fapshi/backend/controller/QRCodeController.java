@@ -37,37 +37,40 @@ public class QRCodeController {
     @Autowired
     private VendeurService vendeurService;
 
+    @Autowired
+    private com.fapshi.backend.repository.UserRepository userRepository;
+
     /**
      * Génère un QR Code pour un vendeur connecté.
      */
-    @Operation(summary = "Générer un QR Code", description = "Crée un QR Code pour un paiement. Réservé aux vendeurs.")
     @PostMapping("/generate")
-    @PreAuthorize("hasAuthority('VENDEUR')")
     public ResponseEntity<ApiResponse<QrCodeResponse>> generateQRCode(@Valid @RequestBody GenerateQrRequest request) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();  // ← Correction : username (pas email)
+        String username = auth.getName();
 
-        Vendeur vendeur = vendeurService.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("Vendeur non trouvé."));
+        com.fapshi.backend.entity.User user = userRepository.findByEmail(username)
+                .or(() -> userRepository.findByTelephone(username))
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé."));
 
-        QRCode qrCode = new QRCode();
-        qrCode.setVendeur(vendeur);
-        qrCode.setMontant(request.getMontant());
-        qrCode.setDescription(request.getDescription());
-        qrCode.setDateExpiration(request.getDateExpiration());
-        qrCode.setContenu("QR pour paiement " + request.getMontant() + " XAF");
-        qrCode.setHash("HASH-" + System.currentTimeMillis());
+        Vendeur vendeur;
+        com.fapshi.backend.entity.Caissier caissier = null;
 
-        QRCode savedQr = qrCodeService.save(qrCode);
+        if (user instanceof Vendeur) {
+            vendeur = (Vendeur) user;
+        } else if (user instanceof com.fapshi.backend.entity.Caissier) {
+            caissier = (com.fapshi.backend.entity.Caissier) user;
+            vendeur = caissier.getVendeur();
+            if (vendeur == null) {
+                throw new RuntimeException("Ce caissier n'est lié à aucun vendeur.");
+            }
+            if (!caissier.isActif()) {
+                throw new RuntimeException("Ce compte caissier est désactivé.");
+            }
+        } else {
+            throw new RuntimeException("Seul un vendeur ou un caissier peut générer un QR Code.");
+        }
 
-        QrCodeResponse response = new QrCodeResponse(
-                savedQr.getId(),
-                savedQr.getContenu(),
-                savedQr.getMontant(),
-                savedQr.getDescription(),
-                savedQr.getDateExpiration(),
-                savedQr.isEstUtilise()
-        );
+        QrCodeResponse response = qrCodeService.generateQRCode(request, vendeur, caissier);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(response, "QR Code généré avec succès"));
@@ -78,17 +81,24 @@ public class QRCodeController {
      */
     @Operation(summary = "Liste des QR Codes du vendeur", description = "Retourne tous les QR Codes créés par le vendeur authentifié.")
     @GetMapping("/my-qrs")
-    @PreAuthorize("hasAuthority('VENDEUR')")
+    @PreAuthorize("hasAnyRole('VENDEUR', 'CAISSIER')")
     public ResponseEntity<ApiResponse<List<QrCodeSummaryResponse>>> getMyQRCodes() {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();  // ← Correction : username (pas usermane)
+        String username = auth.getName();  
 
-        Vendeur vendeur = vendeurService.findByEmail(username)
-                .or(() -> vendeurService.findByTelephone(username))
-                .orElseThrow(() -> new RuntimeException("Vendeur non trouvé. Veuillez vous reconnecter."));
+        com.fapshi.backend.entity.User user = userRepository.findByEmail(username)
+                .or(() -> userRepository.findByTelephone(username))
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé."));
 
-        List<QRCode> qrCodes = qrCodeService.findByVendeurId(vendeur.getId());
+        List<QRCode> qrCodes;
+        if (user instanceof Vendeur) {
+            qrCodes = qrCodeService.findByVendeurId(user.getId());
+        } else if (user instanceof com.fapshi.backend.entity.Caissier) {
+            qrCodes = qrCodeService.findByCaissierId(user.getId());
+        } else {
+            throw new RuntimeException("Rôle non autorisé.");
+        }
 
         List<QrCodeSummaryResponse> responseList = qrCodes.stream()
                 .map(qr -> new QrCodeSummaryResponse(
@@ -98,7 +108,8 @@ public class QRCodeController {
                         qr.getDescription(),
                         qr.getDateCreation(),
                         qr.getDateExpiration(),
-                        qr.isEstUtilise()
+                        qr.isEstUtilise(),
+                        qr.getQrPayload()
                 ))
                 .toList();
 
@@ -109,6 +120,7 @@ public class QRCodeController {
      * Valide un QR Code lors du scan par un client.
      * Accessible à tous (pas de rôle requis).
      */
+
     @Operation(summary = "Valider / Scanner un QR Code", description = "Vérifie si le QR est valide, non expiré et non utilisé.")
     @GetMapping("/validate/{qrCodeId}")
     public ResponseEntity<ApiResponse<QrValidationResponse>> validateQrCode(@PathVariable Long qrCodeId) {
@@ -121,23 +133,34 @@ public class QRCodeController {
         }
     }
 
+
     /**
      * Marque un QR Code comme utilisé après paiement réussi.
      * Réservé au vendeur propriétaire du QR.
      */
+
     @Operation(summary = "Marquer un QR Code comme utilisé", description = "Met estUtilise = true après un paiement confirmé. Réservé au vendeur.")
     @PutMapping("/{id}/mark-used")
-    @PreAuthorize("hasAuthority('VENDEUR')")
+    @PreAuthorize("hasAnyRole('VENDEUR', 'CAISSIER')")
     public ResponseEntity<ApiResponse<String>> markQrAsUsed(@PathVariable Long id) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
 
-        Vendeur vendeur = vendeurService.findByEmail(username)
-                .or(() -> vendeurService.findByTelephone(username))
-                .orElseThrow(() -> new RuntimeException("Vendeur non trouvé. Veuillez vous reconnecter."));
+        com.fapshi.backend.entity.User user = userRepository.findByEmail(username)
+                .or(() -> userRepository.findByTelephone(username))
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé."));
+
+        Long vendeurId;
+        if (user instanceof Vendeur) {
+            vendeurId = user.getId();
+        } else if (user instanceof com.fapshi.backend.entity.Caissier) {
+            vendeurId = ((com.fapshi.backend.entity.Caissier) user).getVendeur().getId();
+        } else {
+            throw new RuntimeException("Rôle non autorisé.");
+        }
 
         try {
-            qrCodeService.markQrAsUsed(id, vendeur.getId());
+            qrCodeService.markQrAsUsed(id, vendeurId);
             return ResponseEntity.ok(new ApiResponse<>(null, "QR Code marqué comme utilisé avec succès"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
@@ -145,3 +168,4 @@ public class QRCodeController {
         }
     }
 }
+

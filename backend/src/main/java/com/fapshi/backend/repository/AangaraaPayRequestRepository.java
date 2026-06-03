@@ -11,7 +11,4 @@ import java.util.Optional;
  */
 @Repository
 public interface AangaraaPayRequestRepository extends JpaRepository<AangaraaPayRequest, Long> {
-
-    // Recherche par l'ID externe renvoyé par Aangaraa
-    Optional<AangaraaPayRequest> findByExternalTransactionId(String externalTransactionId);
 }

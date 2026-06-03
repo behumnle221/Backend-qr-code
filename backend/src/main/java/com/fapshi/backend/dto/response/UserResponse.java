@@ -12,23 +12,26 @@ import java.time.LocalDateTime;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
+//@AllArgsConstructor
 public class UserResponse {
 
     private Long id;
     private String nom;
     private String email;
     private String telephone;
-    private String type; // "CLIENT" ou "VENDEUR"
-    //private LocalDateTime dateInscription ;
-     
-        // Ajouté : constructeur explicite si Lombok n'est pas actif
+    private String type; 
+    
+    // Décommente ceci et ajoute le formatage
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime dateInscription;
+
+    // Ton constructeur explicite doit correspondre aux champs
     public UserResponse(Long id, String nom, String email, String telephone, String type, LocalDateTime dateInscription) {
         this.id = id;
         this.nom = nom;
         this.email = email;
         this.telephone = telephone;
         this.type = type;
+        this.dateInscription = dateInscription; // N'oublie pas de l'assigner !
     }
 }
-

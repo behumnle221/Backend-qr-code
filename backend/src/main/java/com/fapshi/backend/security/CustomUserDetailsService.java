@@ -31,8 +31,17 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseGet(() -> userRepository.findByTelephone(username)
                         .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé : " + username)));
 
+        // Check if Caissier is active
+        if (user instanceof com.fapshi.backend.entity.Caissier) {
+            com.fapshi.backend.entity.Caissier caissier = (com.fapshi.backend.entity.Caissier) user;
+            if (!caissier.isActif()) {
+                throw new org.springframework.security.authentication.DisabledException("Ce compte caissier a été désactivé par le vendeur.");
+            }
+        }
+
         // Détermine le rôle à partir de l'entité (pas du token)
         String roleName = user instanceof Vendeur ? "VENDEUR" :
+                          user instanceof com.fapshi.backend.entity.Caissier ? "CAISSIER" :
                           user instanceof Client ? "CLIENT" : "ADMIN";
 
         // Crée l'authority avec le préfixe ROLE_ (obligatoire pour hasRole)

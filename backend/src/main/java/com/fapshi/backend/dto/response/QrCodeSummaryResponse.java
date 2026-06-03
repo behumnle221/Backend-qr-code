@@ -15,11 +15,13 @@ public class QrCodeSummaryResponse {
     private LocalDateTime dateCreation;
     private LocalDateTime dateExpiration;
     private boolean estUtilise;
+    private String qrPayload;
 
     // Constructeur explicite
     public QrCodeSummaryResponse(Long id, String contenu, BigDecimal montant, 
                                   String description, LocalDateTime dateCreation, 
-                                  LocalDateTime dateExpiration, boolean estUtilise) {
+                                  LocalDateTime dateExpiration, boolean estUtilise,
+                                  String qrPayload) {
         this.id = id;
         this.contenu = contenu;
         this.montant = montant;
@@ -27,5 +29,6 @@ public class QrCodeSummaryResponse {
         this.dateCreation = dateCreation;
         this.dateExpiration = dateExpiration;
         this.estUtilise = estUtilise;
+        this.qrPayload = qrPayload;
     }
 }

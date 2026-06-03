@@ -29,6 +29,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import com.fapshi.backend.dto.request.ForgotPasswordRequest;
+import com.fapshi.backend.dto.request.ResetPasswordRequest;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -169,7 +171,8 @@ public class AuthController {
 
             // Détermination du rôle
             String role = user instanceof Client ? "CLIENT" :
-                          user instanceof Vendeur ? "VENDEUR" : "ADMIN";
+                          user instanceof Vendeur ? "VENDEUR" : 
+                          user instanceof com.fapshi.backend.entity.Caissier ? "CAISSIER" : "ADMIN";
 
             // Génération du token JWT
             String jwt = jwtUtil.generateToken(
@@ -197,4 +200,36 @@ public class AuthController {
                     .body(new ApiResponse<>("Erreur lors de la connexion : " + e.getMessage()));
         }
     }
-}
+
+    @Operation(summary = "Demander réinitialisation mot de passe", description = "Envoie un code par email si l'email existe.")
+        @PostMapping("/forgot-password")
+        public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        userService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok(new ApiResponse<>(null, "Si cet email existe, un code de réinitialisation a été envoyé."));
+        }
+
+        @Operation(summary = "Réinitialiser mot de passe avec code", description = "Change le password si le code est valide.")
+                @PostMapping("/reset-password")
+                public ResponseEntity<ApiResponse<String>> resetPassword(@RequestBody ResetPasswordRequest request) {
+                try {
+                        userService.resetPassword(request.getCode(), request.getNewPassword());
+                        return ResponseEntity.ok(new ApiResponse<>(null, "Mot de passe réinitialisé avec succès"));
+                } catch (RuntimeException e) {
+                        return ResponseEntity.badRequest()
+                                .body(new ApiResponse<>(null, e.getMessage()));  // ← Message clair au client
+                }
+                }
+
+    // ───────────────────────────────────────────────
+    // KEEP-ALIVE / PING (utilisé par le frontend pour maintenir la session active)
+    // ───────────────────────────────────────────────
+    @Operation(summary = "Vérifier le statut de la session", description = "Endpoint léger pour maintenir la connexion active")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<String>> me(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse<>("Non authentifié"));
+        }
+        return ResponseEntity.ok(new ApiResponse<>("ok", "Session active"));
+    }
+}

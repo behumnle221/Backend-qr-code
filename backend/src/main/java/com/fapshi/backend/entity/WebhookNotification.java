@@ -2,11 +2,9 @@ package com.fapshi.backend.entity;
 
 import com.fapshi.backend.enums.StatutTransaction;
 import jakarta.persistence.*;
-import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Data
 public class WebhookNotification {
 
     @Id
@@ -27,4 +25,31 @@ public class WebhookNotification {
     private int tentatives = 0;
 
     private String transactionIdExterne;
+
+
+    // Getters and Setters
+    public Long getId() { return id; }
+    
+    public void setId(Long id) { this.id = id; }
+    
+    public String getPayToken() { return payToken; }
+    public void setPayToken(String payToken) { this.payToken = payToken; }
+    
+    public StatutTransaction getStatus() { return status; }
+    public void setStatus(StatutTransaction status) { this.status = status; }
+    
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+    
+    public LocalDateTime getDateReception() { return dateReception; }
+    public void setDateReception(LocalDateTime dateReception) { this.dateReception = dateReception; }
+    
+    public boolean isTraite() { return traite; }
+    public void setTraite(boolean traite) { this.traite = traite; }
+    
+    public int getTentatives() { return tentatives; }
+    public void setTentatives(int tentatives) { this.tentatives = tentatives; }
+    
+    public String getTransactionIdExterne() { return transactionIdExterne; }
+    public void setTransactionIdExterne(String transactionIdExterne) { this.transactionIdExterne = transactionIdExterne; }
 }

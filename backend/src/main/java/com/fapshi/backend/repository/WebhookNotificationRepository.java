@@ -16,6 +16,8 @@ public interface WebhookNotificationRepository extends JpaRepository<WebhookNoti
     // Toutes les notifications pour un payToken
     List<WebhookNotification> findByPayToken(String payToken);
 
+   
+
     // Notifications non encore traitées (pour retry)
     List<WebhookNotification> findByTraiteFalse();
 }

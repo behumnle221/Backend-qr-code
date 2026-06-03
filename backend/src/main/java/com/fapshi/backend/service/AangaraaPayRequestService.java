@@ -23,8 +23,4 @@ public class AangaraaPayRequestService {
     public Optional<AangaraaPayRequest> findById(Long id) {
         return requestRepository.findById(id);
     }
-
-    public Optional<AangaraaPayRequest> findByExternalTransactionId(String externalId) {
-        return requestRepository.findByExternalTransactionId(externalId);
-    }
 }

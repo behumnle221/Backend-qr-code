@@ -11,10 +11,12 @@ public class QRCode {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    private String qrPayload;   // ← NOUVEAU : le JSON complet qui sera scanné
     private String contenu;
 
     private String description;  // ← Champ ajouté ici
+
+    private String usageType = "PAYMENT_MARCHAND";
 
     private BigDecimal montant;
 
@@ -29,6 +31,10 @@ public class QRCode {
     @ManyToOne
     @JoinColumn(name = "vendeur_id")
     private Vendeur vendeur;
+
+    @ManyToOne
+    @JoinColumn(name = "caissier_id")
+    private Caissier caissier;
 
     // Getters et Setters manuels
     public Long getId() { return id; }
@@ -55,6 +61,18 @@ public class QRCode {
     public String getHash() { return hash; }
     public void setHash(String hash) { this.hash = hash; }
 
+    public String getUsageType() { return usageType; }
+    public void setUsageType(String usageType) { this.usageType = usageType; }
+
     public Vendeur getVendeur() { return vendeur; }
     public void setVendeur(Vendeur vendeur) { this.vendeur = vendeur; }
+
+    public Caissier getCaissier() { return caissier; }
+    public void setCaissier(Caissier caissier) { this.caissier = caissier; }
+
+    // jsonPayload est un champ calculé, pas besoin de setter
+    public String getQrPayload() { return qrPayload; }
+    public void setQrPayload(String qrPayload) { this.qrPayload = qrPayload; }
+
+
 }

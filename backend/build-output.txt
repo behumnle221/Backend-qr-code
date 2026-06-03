@@ -1,0 +1,44 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.3/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :clean UP-TO-DATE
+> Task :compileJava
+C:\Users\JEREMIE\Documents\ICTL3\ICT300\projet_soutenance\Backend-qr-code\backend\src\main\java\com\fapshi\backend\service\PaymentService.java:117: warning: [rawtypes] found raw type: Map
+            ResponseEntity<Map> response = restTemplate.exchange(
+                           ^
+  missing type arguments for generic class Map<K,V>
+  where K,V are type-variables:
+    K extends Object declared in interface Map
+    V extends Object declared in interface Map
+C:\Users\JEREMIE\Documents\ICTL3\ICT300\projet_soutenance\Backend-qr-code\backend\src\main\java\com\fapshi\backend\service\PaymentService.java:120: warning: [unchecked] unchecked conversion
+            Map<String, Object> responseBody = response.getBody();
+                                                               ^
+  required: Map<String,Object>
+  found:    Map
+C:\Users\JEREMIE\Documents\ICTL3\ICT300\projet_soutenance\Backend-qr-code\backend\src\main\java\com\fapshi\backend\service\PaymentService.java:515: warning: [rawtypes] found raw type: Map
+                    ResponseEntity<Map> response = restTemplate.exchange(
+                                   ^
+  missing type arguments for generic class Map<K,V>
+  where K,V are type-variables:
+    K extends Object declared in interface Map
+    V extends Object declared in interface Map
+C:\Users\JEREMIE\Documents\ICTL3\ICT300\projet_soutenance\Backend-qr-code\backend\src\main\java\com\fapshi\backend\service\PaymentService.java:518: warning: [unchecked] unchecked conversion
+                    Map<String, Object> responseBody = response.getBody();
+                                                                       ^
+  required: Map<String,Object>
+  found:    Map
+C:\Users\JEREMIE\Documents\ICTL3\ICT300\projet_soutenance\Backend-qr-code\backend\src\main\java\com\fapshi\backend\service\PaymentService.java:648: warning: [rawtypes] found raw type: Map
+                    ResponseEntity<Map> response = restTemplate.exchange(
+                                   ^
+  missing type arguments for generic class Map<K,V>
+  where K,V are type-variables:
+    K extends Object declared in interface Map
+    V extends Object declared in interface Map
+C:\Users\JEREMIE\Documents\ICTL3\ICT300\projet_soutenance\Backend-qr-code\backend\src\main\java\com\fapshi\backend\service\PaymentService.java:651: warning: [unchecked] unchecked conversion
+                    Map<String, Object> responseBody = response.getBody();
+                                                                       ^
+  required: Map<String,Object>
+  found:    Map
+6 warnings
+
+BUILD SUCCESSFUL in 5m 9s
+2 actionable tasks: 1 executed, 1 up-to-date

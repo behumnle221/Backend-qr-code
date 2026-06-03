@@ -2,11 +2,26 @@ package com.fapshi.backend.service;
 
 import com.fapshi.backend.entity.Client;
 import com.fapshi.backend.repository.ClientRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+// AJOUT : Import pour les DTOs et autres dépendances nécessaires
+import com.fapshi.backend.dto.response.TransactionDTO;  // ← Changé de TransactionResponse à TransactionDTO
+import com.fapshi.backend.entity.Transaction;
+import com.fapshi.backend.repository.TransactionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import java.util.stream.Collectors;
 
 /**
  * Service pour les opérations spécifiques aux Clients.
@@ -14,8 +29,14 @@ import java.util.Optional;
 @Service
 public class ClientService {
 
+    private static final Logger log = LoggerFactory.getLogger(ClientService.class);
+
     @Autowired
     private ClientRepository clientRepository;
+
+    // AJOUT : Injection du TransactionRepository pour gérer les transactions
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     public Client save(Client client) {
         return clientRepository.save(client);
@@ -25,8 +46,91 @@ public class ClientService {
         return clientRepository.findById(id);
     }
 
+    public Optional<Client> findByTelephone(String telephone) {
+        return clientRepository.findByTelephone(telephone);
+    }
+    
+    public Optional<Client> findByEmail(String email) {
+        return clientRepository.findByEmail(email);
+    }
+
+    @Transactional
+    public void debiterSolde(Long clientId, BigDecimal montant) {
+        int affected = clientRepository.debiterSiSuffisant(clientId, montant);
+        if (affected == 0) {
+            throw new RuntimeException("Solde insuffisant ou client introuvable");
+        }
+    }
+
+    public BigDecimal getSoldeVirtuel(Long clientId) {
+        return clientRepository.findById(clientId)
+                .map(client -> client.getSoldeVirtuel())
+                
+                .orElse(BigDecimal.ZERO);
+    }
+
+    /**
+     * Crédite le compte virtuel du client (pour les rechargements via Aangaraa)
+     */
+    @Transactional
+    public void crediterSolde(Long clientId, BigDecimal montant) {
+        if (montant == null || montant.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Le montant doit être positif");
+        }
+        
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Client introuvable"));
+        
+        client.setSoldeVirtuel(client.getSoldeVirtuel().add(montant));
+        client.setDerniereMiseAJourSolde(java.time.LocalDateTime.now());
+        clientRepository.save(client);
+        
+        log.info("💰 Compte virtuel du client {} crédité de {} XAF", clientId, montant);
+    }
+
     public List<Client> findAll() {
         return clientRepository.findAll();
     }
-}
 
+    // AJOUT : Nouvelle méthode pour récupérer l'historique des transactions d'un client
+    // (basée sur le clientId ou telephoneClient, ajusté à ton entité Transaction)
+    public List<TransactionDTO> getHistoriqueTransactions(Long clientId, int page, int size, String statut, String dateDebut, String dateFin) {  // ← Changé TransactionResponse à TransactionDTO
+        Pageable pageable = PageRequest.of(page, size, Sort.by("dateCreation").descending());
+
+        // Parser les dates (gérer les cas null ou vide)
+        LocalDateTime dateDebutParsed = null;
+        LocalDateTime dateFinParsed = null;
+        
+        try {
+            if (dateDebut != null && !dateDebut.isBlank()) {
+                dateDebutParsed = LocalDateTime.parse(dateDebut);
+            }
+        } catch (Exception e) {
+            // Ignorer si date invalide
+        }
+        
+        try {
+            if (dateFin != null && !dateFin.isBlank()) {
+                dateFinParsed = LocalDateTime.parse(dateFin);
+            }
+        } catch (Exception e) {
+            // Ignorer si date invalide
+        }
+
+        // Récupération des transactions du client
+        Page<Transaction> transactions = transactionRepository.findTransactionsByClient(clientId, statut, dateDebutParsed, dateFinParsed, pageable);
+
+        return transactions.stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    // AJOUT : Méthode privée pour convertir Transaction en DTO Response
+    private TransactionDTO toResponse(Transaction transaction) {  // ← Changé TransactionResponse à TransactionDTO
+        TransactionDTO response = new TransactionDTO();
+        response.setId(transaction.getId());
+        response.setMontant(transaction.getMontant());
+        response.setStatut(transaction.getStatut());
+        response.setDateCreation(transaction.getDateCreation());
+        // AJOUT : Ajoute d'autres champs si besoin (ex : operator, payToken)
+        return response;
+    }
+}

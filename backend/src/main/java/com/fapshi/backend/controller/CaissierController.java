@@ -48,10 +48,15 @@ public class CaissierController {
         }
     }
 
+    /**
+     * Liste toutes les caisses du vendeur avec stats filtrées par période.
+     * @param periode JOUR | SEMAINE | MOIS | TOUT (défaut: TOUT)
+     */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<CaissierResponse>>> listerCaissiers() {
+    public ResponseEntity<ApiResponse<List<CaissierResponse>>> listerCaissiers(
+            @RequestParam(defaultValue = "TOUT") String periode) {
         Vendeur vendeur = getAuthenticatedVendeur();
-        List<CaissierResponse> response = caissierService.listerCaissiers(vendeur.getId());
+        List<CaissierResponse> response = caissierService.listerCaissiers(vendeur.getId(), periode);
         return ResponseEntity.ok(new ApiResponse<>(response, "Liste des caisses récupérée."));
     }
 
